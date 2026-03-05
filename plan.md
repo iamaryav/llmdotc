@@ -23,9 +23,26 @@
 - [Untied weights for token embeddings and lm_head]()
 - [Sliding window with Causal](https://arxiv.org/abs/2502.18845)
 - for now will use existing transformers
-- [Mixed precision to save the memory while training](https://arxiv.org/abs/1710.03740)
 - Generate method
 - estimate flops method
 - method scaling law - [Kaplan et al.](https://arxiv.org/abs/2001.08361) and [Chinchilla](https://arxiv.org/abs/2203.15556) optimal compute and parameter counts
 - Optimizer setup [AdamW](https://arxiv.org/abs/1711.05101)
 - [Muon Optimizer](https://arxiv.org/abs/2502.16982)
+
+#### Training Pipeline
+- [DDP training pipeline](https://arxiv.org/abs/2006.15704)
+- [FSDP](https://arxiv.org/abs/2304.11280)
+- data / token generation
+- Data loading
+- [LR scheduler](https://arxiv.org/abs/2406.09405)
+- Gradient accumulation
+- [Mixed precision training](https://arxiv.org/abs/1710.03740)
+- Training loop - forward, backward, optimizer step
+- [Learning rate warmup](https://arxiv.org/abs/2406.09405)
+- training log and other evaluation logging, performance profiling
+- Checkpointing/saving
+- resume training from checkpoint
+- [gradient clipping](https://arxiv.org/abs/1905.11881)
+- Sampling
+- Evaluation/validation loop
+- Wandb integration
