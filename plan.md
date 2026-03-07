@@ -1,5 +1,13 @@
 # Plan
-
+- write arch in torch - GPT - 2/3 size
+- write decoder only arch then improve one by one
+- shakespeare/tiny stories or tiny general data
+- write training pipeline in torch
+- do a training run(verify the correctness and loss graph)
+- write in c/cuda(piece by piece) 
+- speed comparision with pytorch training loop
+- Benchmark comparision
+- explain what i learned posts/Share/ask/explain/blogs throughout the project
 #### GPT architecture
 - [GPTConfig]()
 - [initialize model method]()
@@ -31,7 +39,8 @@
 
 #### Training Pipeline
 - [DDP training pipeline](https://arxiv.org/abs/2006.15704)
-- [FSDP](https://arxiv.org/abs/2304.11280)
+- [FSDP](https://arxiv.org/abs/2304.11280)(later if needed)
+- Tokenizer
 - data / token generation
 - Data loading
 - [LR scheduler](https://arxiv.org/abs/2406.09405)
@@ -44,5 +53,5 @@
 - resume training from checkpoint
 - [gradient clipping](https://arxiv.org/abs/1905.11881)
 - Sampling
-- Evaluation/validation loop
+- Evaluation/validation loop/visualization
 - Wandb integration
