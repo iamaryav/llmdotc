@@ -13,6 +13,7 @@ class GPTConfig:
     num_hidden_layers: int = 12
     num_attention_heads: int = 12
     dropout: float = 0.2# change later
+    bias: bool = False
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, config):
@@ -20,10 +21,10 @@ class CausalSelfAttention(nn.Module):
         assert config.hidden_size % config.num_attention_heads == 0
         self.num_attention_heads = config.num_attention_heads
         self.head_dim = config.hidden_size // self.num_attention_heads
-        self.q_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim)
-        self.k_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim)
-        self.v_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim)
-        self.out_proj = nn.Linear(config.num_attention_heads * self.head_dim, config.hidden_size)
+        self.q_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, config.bias)
+        self.k_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, config.bias)
+        self.v_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, config.bias)
+        self.out_proj = nn.Linear(config.num_attention_heads * self.head_dim, config.hidden_size, config.bias)
         self.dropout = nn.Dropout(config.dropout)
         self.register_buffer('tril', torch.tril(torch.ones(config.max_seq_len, config.max_seq_len)))
 
@@ -50,10 +51,10 @@ class CausalSelfAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.up_proj = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.up_proj = nn.Linear(config.hidden_size, config.intermediate_size, config.bias)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(config.dropout)
-        self.down_proj = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.down_proj = nn.Linear(config.intermediate_size, config.hidden_size, config.bias)
 
     def forward(self, x):
         y = self.dropout(self.down_proj(self.relu(self.up_proj(x))))
@@ -81,7 +82,7 @@ class GPT(nn.Module):
         self.pos_embed = nn.Embedding(config.max_seq_len, config.hidden_size)
         self.layers = nn.Sequential([DecoderLayer(config) for layer_idx in config.num_hidden_layers])
         self.norm = nn.LayerNorm(config.hidden_size) # change it to RMSNorm
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size)
+        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, config.bias)
         self._init_weights()
 
     def _init_weights(self):
