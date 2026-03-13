@@ -15,6 +15,28 @@ class GPTConfig:
     dropout: float = 0.2# change later
     bias: bool = False
 
+def rotary_embedding(x, cos, sin):
+    # for rotating a pair (X1, X2)
+    # x1 * cos - x2 * sin, x1 sin + x2 cos
+    # need cost with all
+    # embedding -> Q/K Proj -> RoPE rotation -> attention
+    # (batch, num_attention_heads, seq_len, head_dim)
+    assert x.ndim == 4
+    d = x.shape[3] // 2
+    # even odd pairing
+    # x1, x2 = x[..., ::2], x2 = x[..., 1::2]
+    # y1 = x1 * cos + x2 (-sin)
+    # y2 = x1 * sin + x2 * cos
+
+    # half pairing
+    x1, x2 = x[..., :d], x[..., d:]
+    y1 = x1 * cos + x2 * (-sin)
+    y2 = x1 * sin + x2 * cos
+
+    return torch.cat([y1, y2], dim=-1)
+
+
+
 class CausalSelfAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -38,7 +60,9 @@ class CausalSelfAttention(nn.Module):
         k = self.k_proj(x).view(batch, seq_len, self.num_attention_heads, self.head_dim).transpose(1, 2)
         v = self.v_proj(x).view(batch, seq_len, self.num_attention_heads, self.head_dim).transpose(1, 2)
 
-        attn_wei = q @ k.transpose(-2, -1) * torch.sqrt(k.shape[-1]) ** 0.5
+        # apply rotary embedding
+
+        attn_wei = q @ k.transpose(-2, -1) * torch.sqrt(k.shape[-1]) ** -0.5
         attn_wei = attn_wei.masked_fill(self.tril[:seq_len,:seq_len] == 0, float("-inf"))
         attn_wei = F.softmax(attn_wei, dim=-1)  
         attn_wei = self.dropout(attn_wei) 
