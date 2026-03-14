@@ -25,27 +25,12 @@ def apply_rotary_emb(x, cos, sin):
 
     # half split
     x1, x2 = x[..., :d], x[..., d:]
-    y1 = x1 * cos + x2 * (-sin)
-    y2 = x1 * sin + x2 * cos
+    y1 = x1 * cos + x2 * sin
+    y2 = x1 * (-sin) + x2 * cos
 
     return torch.cat([y1, y2], dim=-1)
 
 
-def precompute_rotary_embeddings(seq_len, head_dim, base=10000, device=None):
-    # stride the channels
-    channel_range = torch.arange(0, head_dim, 2, dtype=torch.float32, device=device)
-    inv_freq = 1.0 / (base ** (channel_range / head_dim))
-
-    # stride the time steps
-    t = torch.arange(seq_len, dtype=torch.float32, device=device)
-    # calculate the rotation frequencies at each (time, channel) pair
-    freqs = torch.outer(t, inv_freq)
-    cos, sin = freqs.cos(), freqs.sin()
-
-    # add batch and head dimension for broadcasting
-    # shape: (1, 1, seq_len, head_dim//2)
-    cos, sin = cos[None, None, :, :], sin[None, None, :, :]
-    return cos, sin
 
 
 class CausalSelfAttention(nn.Module):
@@ -120,6 +105,24 @@ class GPT(nn.Module):
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, config.bias)
         self._init_weights()
 
+    def _precompute_rotary_embeddings(self, seq_len, head_dim, base=10000, device=None):
+        # stride the channels
+        if device is None:
+            device = self.embed_tokens.device
+        channel_range = torch.arange(0, head_dim, 2, dtype=torch.float32, device=device)
+        inv_freq = 1.0 / (base ** (channel_range / head_dim))
+
+        # stride the time steps
+        t = torch.arange(seq_len, dtype=torch.float32, device=device)
+        # calculate the rotation frequencies at each (time, channel) pair
+        freqs = torch.outer(t, inv_freq)
+        cos, sin = freqs.cos(), freqs.sin()
+
+        # add batch and head dimension for broadcasting
+        # shape: (1, 1, seq_len, head_dim//2)
+        cos, sin = cos[None, None, :, :], sin[None, None, :, :]
+        return cos, sin
+
     def _init_weights(self):
         pass
 
@@ -130,7 +133,7 @@ class GPT(nn.Module):
 
         # precompute rotary embeddings
         head_dim = self.config.hidden_size // self.config.num_attention_heads
-        cos, sin = precompute_rotary_embeddings(seq_len, head_dim, device=device)
+        cos, sin = self._precompute_rotary_embeddings(seq_len, head_dim, device=device)
 
         x = tok_emb
         for layer in self.layers:

@@ -13,9 +13,8 @@
 - [initialize model method]()
 - [Transformer decoder only architecture](https://arxiv.org/pdf/1706.03762v1)
 - [GPT-1 Paper](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf)
-- Norm after token embedding
-- [RoPE - Rotary Positional Embedding](https://arxiv.org/abs/2104.09864)
-- PreNorm (https://arxiv.org/abs/2002.04745)
+- [RoPE - Rotary Positional Embedding](https://arxiv.org/abs/2104.09864) - Done
+- PreNorm (https://arxiv.org/abs/2002.04745) - Done
 - [RMSNorm - No learnable params](https://arxiv.org/abs/1910.07467)
 - No bias in linear layers
 - [QK Norm](https://arxiv.org/abs/2010.04245)
