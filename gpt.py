@@ -91,6 +91,7 @@ class DecoderLayer(nn.Module):
         self.ffn = MLP(config)
 
     def forward(self, x, cos, sin):
+        # pre-attention layernorm -> self attention -> post-attention layernorm -> ffn
         x = x + self.self_attn(self.input_layernorm(x), cos, sin)
         x = x + self.ffn(self.post_attention_norm(x))
         return x

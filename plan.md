@@ -17,6 +17,8 @@
 - PreNorm (https://arxiv.org/abs/2002.04745) - Done
 - [RMSNorm - No learnable params](https://arxiv.org/abs/1910.07467)
 - No bias in linear layers
+- [Xavier/Glorot initialization](http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf) for linear layers
+- [He/Kaiming initialization](https://arxiv.org/abs/1502.01852) for ReLU activations
 - [QK Norm](https://arxiv.org/abs/2010.04245)
 - [Group Query Attention - GQA](https://arxiv.org/abs/2406.14963)
 - KV-Cache implementation
