@@ -13,6 +13,7 @@ class GPTConfig:
     max_seq_len: int = 2048
     num_hidden_layers: int = 12
     num_attention_heads: int = 12
+    num_kv_heads: int = 2
     dropout: float = 0.2
     bias: bool = False
 
@@ -37,11 +38,13 @@ class CausalSelfAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
         assert config.hidden_size % config.num_attention_heads == 0
+        assert config.num_attention_heads % config.num_kv_heads == 0
         self.num_attention_heads = config.num_attention_heads
+        self.num_kv_heads = config.num_kv_heads
         self.head_dim = config.hidden_size // self.num_attention_heads
         self.q_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, config.bias)
-        self.k_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, config.bias)
-        self.v_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, config.bias)
+        self.k_proj = nn.Linear(config.hidden_size, config.num_kv_heads * self.head_dim, config.bias)
+        self.v_proj = nn.Linear(config.hidden_size, config.num_kv_heads * self.head_dim, config.bias)
         self.out_proj = nn.Linear(config.num_attention_heads * self.head_dim, config.hidden_size, config.bias)
         self.dropout = nn.Dropout(config.dropout)
         self.register_buffer('tril', torch.tril(torch.ones(config.max_seq_len, config.max_seq_len)))
@@ -52,8 +55,11 @@ class CausalSelfAttention(nn.Module):
         batch, seq_len = x.shape[:-1]
         # (batch, num_attention_heads, seq_len, head_dim)
         q = self.q_proj(x).view(batch, seq_len, self.num_attention_heads, self.head_dim).transpose(1, 2)
-        k = self.k_proj(x).view(batch, seq_len, self.num_attention_heads, self.head_dim).transpose(1, 2)
-        v = self.v_proj(x).view(batch, seq_len, self.num_attention_heads, self.head_dim).transpose(1, 2)
+        k = self.k_proj(x).view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
+        v = self.v_proj(x).view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
+        # expand the kv_heads to match query dimensions for calculation
+        k = k.expand(batch, self.num_attention_heads, seq_len, self.head_dim)
+        v = v.expand(batch, self.num_attention_heads, seq_len, self.head_dim)
 
         # apply rotary embedding
         q = apply_rotary_emb(q, cos, sin)
