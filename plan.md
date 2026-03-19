@@ -10,19 +10,19 @@
 - explain what i learned posts/Share/ask/explain/blogs throughout the project
 #### GPT architecture
 - [GPTConfig]()
-- [initialize model method]()
-- [Transformer decoder only architecture](https://arxiv.org/pdf/1706.03762v1)
-- [GPT-1 Paper](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf)
+- [Transformer decoder only architecture](https://arxiv.org/pdf/1706.03762v1) - Done
+- [GPT-1 Paper](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) - wip
 - [RoPE - Rotary Positional Embedding](https://arxiv.org/abs/2104.09864) - Done
 - PreNorm (https://arxiv.org/abs/2002.04745) - Done
 - [RMSNorm - No learnable params](https://arxiv.org/abs/1910.07467)
-- No bias in linear layers
+- No bias in linear layers - Done
+- [initialize model method]() - next
 - [Xavier/Glorot initialization](http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf) for linear layers
 - [He/Kaiming initialization](https://arxiv.org/abs/1502.01852) for ReLU activations
-- [QK Norm](https://arxiv.org/abs/2010.04245)
+- [QK Norm](https://arxiv.org/abs/2010.04245) - wip
 - [Group Query Attention - GQA](https://arxiv.org/abs/2406.14963)
-- KV-Cache implementation
-- Attention dropout
+- KV-Cache implementation - while doing inference
+- Attention dropout - Not in this arch
 - [Flash Attention](https://arxiv.org/abs/2205.14135)
 - [Flash Attention-2](https://arxiv.org/abs/2307.08691)
 - [Flash Attention-3](https://arxiv.org/abs/2407.08608)

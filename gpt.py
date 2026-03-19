@@ -78,13 +78,17 @@ class CausalSelfAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
+        # Gate Linear unit with relu in between
+        # Will use other activation in between
+        self.gate_proj = nn.Linear(config.hidden_size, config.intermediate_size, config.bias)
         self.up_proj = nn.Linear(config.hidden_size, config.intermediate_size, config.bias)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(config.dropout)
         self.down_proj = nn.Linear(config.intermediate_size, config.hidden_size, config.bias)
 
     def forward(self, x):
-        y = self.dropout(self.down_proj(self.relu(self.up_proj(x))))
+        # (act(xw) * xv)w2
+        y = self.dropout(self.down_proj(self.relu(self.gate_proj(x)) * self.up_proj(x)))
         return y
 
 class DecoderLayer(nn.Module):
