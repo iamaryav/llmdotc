@@ -17,6 +17,9 @@ class GPTConfig:
     dropout: float = 0.2
     bias: bool = False
 
+def norm(x):
+    return F.rms_norm(x, (x.size(-1),))
+
 def apply_rotary_emb(x, cos, sin):
     # x1 * cos - x2 * sin, x1 sin + x2 cos
     # embedding -> Q/K Proj -> RoPE rotation -> attention
@@ -64,6 +67,11 @@ class CausalSelfAttention(nn.Module):
         # apply rotary embedding
         q = apply_rotary_emb(q, cos, sin)
         k = apply_rotary_emb(k, cos, sin)
+
+        # QKNorm with rmsnorm
+        # rms norm to both query and key
+        q = norm(q) 
+        k = norm(k)
 
         attn_wei = q @ k.transpose(-2, -1) * (k.shape[-1] ** -0.5)
         attn_wei = attn_wei.masked_fill(self.tril[:seq_len,:seq_len] == 0, float("-inf"))
