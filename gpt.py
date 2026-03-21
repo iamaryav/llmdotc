@@ -34,9 +34,6 @@ def apply_rotary_emb(x, cos, sin):
 
     return torch.cat([y1, y2], dim=-1)
 
-
-
-
 class CausalSelfAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -169,3 +166,28 @@ class GPT(nn.Module):
             loss = F.cross_entropy(logits, target)
 
         return logits, loss
+
+    def generate(self, x, max_new_tokens=100):
+        # list of tokens
+        for _ in range(max_new_tokens):
+            x = x[:,-self.config.max_seq_len:] # B, T
+            # forward pass
+            logits, _ = self(x)
+            # only last token matters
+            logits = logits[:,-1,:]
+            # probablity of all the tokens
+            probs = F.softmax(logits, dim=-1)
+            # temp?
+            # token index
+            idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
+            x = torch.cat((x, idx_next), dim=1) # (B, T+1)
+        return x
+        
+
+
+
+
+
+
+
+
