@@ -21,14 +21,14 @@
 - Attention dropout - Not in this arch
 - [Untied weights for token embeddings and lm_head]() - Done
 
-- Generate method
-- KV-Cache implementation - while doing inference
+- Generate method - Done
+- KV-Cache implementation - while doing inference - Done
 - [relu**2 activation in MLP](https://arxiv.org/abs/2402.03804)
 - [SwiGLU FFN](https://arxiv.org/pdf/2002.05202) # will not use this one
 - [Sliding window with Causal](https://arxiv.org/abs/2502.18845)
+
 - Optimizer setup [AdamW](https://arxiv.org/abs/1711.05101)
 - [Muon Optimizer](https://arxiv.org/abs/2502.16982)
-
 - [initialize model method]() - next
 - [Xavier/Glorot initialization](http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf) for linear layers
 - [He/Kaiming initialization](https://arxiv.org/abs/1502.01852) for ReLU activations

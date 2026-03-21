@@ -39,7 +39,7 @@ class CausalSelfAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.cached_key = None
-        self.cached_value = None
+        self.cached_val = None
         assert config.hidden_size % config.num_attention_heads == 0
         assert config.num_attention_heads % config.num_kv_heads == 0
         self.num_attention_heads = config.num_attention_heads
@@ -145,6 +145,7 @@ class GPT(nn.Module):
         t = torch.arange(seq_len, dtype=torch.float32, device=device)
         # calculate the rotation frequencies at each (time, channel) pair
         freqs = torch.outer(t, inv_freq)
+
         cos, sin = freqs.cos(), freqs.sin()
 
         # add batch and head dimension for broadcasting
@@ -184,16 +185,16 @@ class GPT(nn.Module):
     def generate(self, x, max_new_tokens=100, temp=1.0):
         # list of tokens
         for _ in range(max_new_tokens):
-            cur_token = x[:,-self.config.max_seq_len:] # B, T
+            cur_token = x[:,-self.config.max_seq_len:] # (B, T)
             # forward pass
-            logits, _ = self(cur_token, kv_cache=True)
+            logits, _ = self(cur_token, kv_cache=True)# (B, T, vocab_size)
             # only last token matters
-            logits = logits[:,-1,:]
+            logits = logits[:,-1,:] # (B, 1, vocab_size)
             # probablity of all the tokens
             if temp != 1.0:
                 logits = logits / temp
 
-            probs = F.softmax(logits, dim=-1)
+            probs = F.softmax(logits, dim=-1) # (B, 1, vocab_size)
             # token index
             idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
             cur_token = idx_next
@@ -204,9 +205,8 @@ if __name__ == '__main__':
     config = GPTConfig()
     model = GPT(config)
     torch.manual_seed(42)
-    print("hi")
     x = torch.randint(1, 100, (1, 8))
-    tokens = model.generate(x, 10)
+    tokens = model.generate(x, 5)
     print(tokens)
         
 
