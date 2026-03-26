@@ -25,7 +25,6 @@
 - KV-Cache implementation - while doing inference - Done
 - Activation Funtions: ReLU, GeLU, SwigLU, ReLU ** 2
 - [relu**2 activation in MLP](https://arxiv.org/abs/2402.03804)
-- [SwiGLU FFN](https://arxiv.org/pdf/2002.05202) # will not use this one
 - [Sliding window with Causal](https://arxiv.org/abs/2502.18845)
 
 - Optimizer setup [AdamW](https://arxiv.org/abs/1711.05101)
