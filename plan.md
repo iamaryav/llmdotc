@@ -23,9 +23,9 @@
 
 - Generate method - Done
 - KV-Cache implementation - while doing inference - Done
-- Activation Funtions: ReLU, GeLU, SwigLU, ReLU ** 2
-- [relu**2 activation in MLP](https://arxiv.org/abs/2402.03804)
-- [Sliding window with Causal](https://arxiv.org/abs/2502.18845)
+- Activation Funtions: ReLU, GeLU, SwigLU, ReLU ** 2 - Done
+- [relu**2 activation in MLP](https://arxiv.org/abs/2402.03804) - Done
+- [Sliding window with Causal](https://arxiv.org/pdf/2004.05150) - wip
 
 - Optimizer setup [AdamW](https://arxiv.org/abs/1711.05101)
 - [Muon Optimizer](https://arxiv.org/abs/2502.16982)
