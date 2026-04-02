@@ -48,10 +48,9 @@
 - data / token generation
 - Data loading
 - [LR scheduler](https://arxiv.org/abs/2406.09405)
-- Gradient accumulation
+- [Learning rate warmup](https://arxiv.org/abs/2406.09405)
 - [Mixed precision training](https://arxiv.org/abs/1710.03740)
 - Training loop - forward, backward, optimizer step
-- [Learning rate warmup](https://arxiv.org/abs/2406.09405)
 - training log and other evaluation logging, performance profiling
 - Checkpointing/saving
 - resume training from checkpoint
