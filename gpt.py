@@ -5,6 +5,9 @@ import torch.nn.functional as F
 
 # vanilla architecture is done
 # work on improving the architecture
+# sliding window attention -> Optimizer setup -> Initialize method -> MFU calculation
+# Training pipeline
+# 
 
 class GPTConfig:
     vocab_size: int = 50304
