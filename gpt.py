@@ -19,6 +19,8 @@ class GPTConfig:
     num_kv_heads: int = 2
     dropout: float = 0.2
     bias: bool = False
+    sliding_window: int = max_seq_len // 4
+    # window_pattern: str = "SSSL"
 
 def norm(x):
     return F.rms_norm(x, (x.size(-1),))
@@ -47,6 +49,7 @@ class CausalSelfAttention(nn.Module):
         assert config.num_attention_heads % config.num_kv_heads == 0
         self.num_attention_heads = config.num_attention_heads
         self.num_kv_heads = config.num_kv_heads
+        self.sliding_window = config.sliding_window
         self.head_dim = config.hidden_size // self.num_attention_heads
         self.q_proj = nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, config.bias)
         self.k_proj = nn.Linear(config.hidden_size, config.num_kv_heads * self.head_dim, config.bias)
@@ -73,6 +76,8 @@ class CausalSelfAttention(nn.Module):
                 v = torch.cat((self.cached_val, v), dim=2)
                 self.cached_key = k
                 self.cached_val = v
+                k = k[:,:,:, -self.sliding_window:]
+                v = v[:,:,:, -self.sliding_window:]
 
         repeat_factor = self.num_attention_heads // self.num_kv_heads
         k = k.repeat_interleave(repeat_factor, dim=1)
@@ -86,7 +91,8 @@ class CausalSelfAttention(nn.Module):
 
         attn_wei = q @ k.transpose(-2, -1) * (k.shape[-1] ** -0.5)
         q_len, kv_len = q.shape[2], k.shape[2]
-        causal_mask = torch.tril(torch.ones(q_len, kv_len, device=q.device, dtype=torch.bool))
+        # causal_mask = torch.tril(torch.ones(q_len, kv_len, device=q.device, dtype=torch.bool))
+        causal_mask = torch.tril(torch.ones(config.sliding_window, config.sliding_window, device=q.device, dtype=torch.bool))
         attn_wei = attn_wei.masked_fill(~causal_mask, float("-inf"))
         attn_wei = F.softmax(attn_wei, dim=-1)
         attn_wei = self.dropout(attn_wei)
