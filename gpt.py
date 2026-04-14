@@ -3,11 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-# vanilla architecture is done
-# work on improving the architecture
-# sliding window attention -> Optimizer setup -> Initialize method -> MFU calculation
 # Training pipeline
-# 
 
 class GPTConfig:
     vocab_size: int = 50304
@@ -149,7 +145,12 @@ class GPT(nn.Module):
         self.layers = nn.ModuleList([DecoderLayer(config) for layer_idx in range(config.num_hidden_layers)])
         self.norm = nn.LayerNorm(config.hidden_size) # change it to RMSNorm
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, config.bias)
-        self._init_weights()
+
+        # init all weights
+        self.apply(self._init_weights)
+        for pn, p in self.named_parameters():
+            if pn.endswith("down_proj"):
+                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.num_hidden_layers))
 
     def _precompute_rotary_embeddings(self, seq_len, head_dim, base=10000, device=None):
         # stride the channels
@@ -170,8 +171,56 @@ class GPT(nn.Module):
         cos, sin = cos[None, None, :, :], sin[None, None, :, :]
         return cos, sin
 
-    def _init_weights(self):
-        pass
+    def _init_weights(self, module):
+        # Linear, bias, Embeddings
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def setup_optimizers(self, weight_decay, learning_rate, betas, device_type):
+        # AdamW implementation
+        # beta 1, beta2, Learning rate, lambda
+        param_dict = {pn: p for pn, p in self.named_parameters()}
+        param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
+        decay_params = [p for _, p in param_dict.items() if p.dim() >= 2]
+        nodecay_params = [p for _, p in param_dict.items() if p.dim() < 2]
+        optim_groups = [
+            {"params": decay_params, "weight_decay": weight_decay},
+            {"params": nodecay_params, "weight_decay": 0.0}
+        ]
+        num_decay_params = sum(p.numel() for p in decay_params)
+        num_nodecay_params = sum(p.numel() for p in nodecay_params)
+        print(f" num decayed parameter tensors: {len(decay_params)} with {num_decay_params}")
+        print(f" num non decayed parameter tensors: {len(nodecay_params)} with {num_nodecay_params}")
+        fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters
+        use_fused = fused_available and device_type == "cuda"
+        extra_args = dict(fused=True) if use_fused else dict()
+        optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
+        print(f"using fused AdamW: {use_fused}")
+        
+        return optimizer
+    
+    def get_num_params(self, non_embedding=True):
+        n_params = sum(p.numel() for p in self.parameters())
+        if non_embedding:
+            n_params -= self.embed_tokens.weight.numel()
+        return n_params
+    
+    def estimate_mfu(self, fwd_bwd_per_iter, dt):
+        N = self.get_num_params()
+        cfg = self.config
+        L, H, Q, T = cfg.num_hidden_layers, cfg.num_attention_heads, cfg.hidden_size // cfg.num_attention_heads, cfg.max_seq_len
+        flops_per_token = 6*N + 12*L*H*Q*T
+        flops_per_fwd_bwd = flops_per_token * T
+        flops_per_iter = flops_per_fwd_bwd * fwd_bwd_per_iter
+        flops_achieved = flops_per_iter * (1.0/dt)
+        flops_promised = 312e12 # GPU's TFLOPS
+        mfu = flops_achieved / flops_promised
+        return mfu
+        
 
     def forward(self, input_ids, target=None, device='cpu', kv_cache=False):
 
