@@ -25,7 +25,7 @@ class GPTConfig:
 def norm(x):
     return F.rms_norm(x, (x.size(-1),))
 
-def apply_rotary_emb(x, cos, sin):
+def apply_rotary_emb(x, cos, sin, start_pos=0):
     # x1 * cos - x2 * sin, x1 sin + x2 cos
     # embedding -> Q/K Proj -> RoPE rotation -> attention
     # (batch, num_attention_heads, seq_len, head_dim)
@@ -34,7 +34,8 @@ def apply_rotary_emb(x, cos, sin):
 
     # half split
     x1, x2 = x[..., :d], x[..., d:]
-    cos, sin = cos[:,:,:x.shape[2],:], sin[:,:,:x.shape[2],:]
+    seq_len = x.shape[2]
+    cos, sin = cos[:,:,start_pos:start_pos+seq_len], sin[:,:,start_pos:start_pos+seq_len]
     y1 = x1 * cos + x2 * sin
     y2 = x1 * (-sin) + x2 * cos
 
@@ -45,6 +46,7 @@ class CausalSelfAttention(nn.Module):
         super().__init__()
         self.cached_key = None
         self.cached_val = None
+        self.cache_seq_len = 0
         assert config.hidden_size % config.num_attention_heads == 0
         assert config.num_attention_heads % config.num_kv_heads == 0
         self.num_attention_heads = config.num_attention_heads
@@ -71,28 +73,34 @@ class CausalSelfAttention(nn.Module):
             if self.cached_key is None:
                 self.cached_key = k
                 self.cached_val = v
+                self.cache_seq_len = seq_len
             else:
                 k = torch.cat((self.cached_key, k), dim=2)
                 v = torch.cat((self.cached_val, v), dim=2)
-                self.cached_key = k
-                self.cached_val = v
-                k = k[:,:,:, -self.sliding_window:]
-                v = v[:,:,:, -self.sliding_window:]
+                self.cached_key = k[:,:,:, -self.sliding_window:]
+                self.cached_val = v[:,:,:, -self.sliding_window:]
+                self.cache_seq_len = self.cached_key.shape[2]
+                k = self.cached_key
+                v = self.cached_val
+
+        start_pos = self.cache_seq_len if kv_cache and self.cached_key is not None else 0
 
         repeat_factor = self.num_attention_heads // self.num_kv_heads
         k = k.repeat_interleave(repeat_factor, dim=1)
         v = v.repeat_interleave(repeat_factor, dim=1)
 
-        q = apply_rotary_emb(q, cos, sin)
-        k = apply_rotary_emb(k, cos, sin)
+        q = apply_rotary_emb(q, cos, sin, start_pos=0)
+        k = apply_rotary_emb(k, cos, sin, start_pos=start_pos)
 
         q = norm(q)
         k = norm(k)
 
         attn_wei = q @ k.transpose(-2, -1) * (k.shape[-1] ** -0.5)
         q_len, kv_len = q.shape[2], k.shape[2]
-        # causal_mask = torch.tril(torch.ones(q_len, kv_len, device=q.device, dtype=torch.bool))
-        causal_mask = torch.tril(torch.ones(config.sliding_window, config.sliding_window, device=q.device, dtype=torch.bool))
+        causal_mask = torch.tril(torch.ones(q_len, kv_len, device=q.device, dtype=torch.bool))
+        window_mask = (torch.arange(q_len, device=q.device)[:,None] - torch.arange(kv_len, device=k.device)[None, :]).abs() < self.sliding_window
+        causal_mask = causal_mask & window_mask
+        # causal_mask = torch.tril(torch.ones(config.sliding_window, config.sliding_window, device=q.device, dtype=torch.bool))
         attn_wei = attn_wei.masked_fill(~causal_mask, float("-inf"))
         attn_wei = F.softmax(attn_wei, dim=-1)
         attn_wei = self.dropout(attn_wei)
