@@ -268,19 +268,19 @@ class GPT(nn.Module):
             x = torch.cat((x, idx_next), dim=1) # (B, T+1)
         return x
 
+# -------------------------------------------
+# Other methods
+# Like data loaders
+# tokenizers
+# save params/grads/files to .bin files
+
+
+# -------------------------------------------
 if __name__ == '__main__':
-    config = GPTConfig()
-    model = GPT(config)
-    torch.manual_seed(42)
-    x = torch.randint(1, 100, (1, 8))
-    tokens = model.generate(x, 5)
-    print(tokens)
-        
+    # trining loop
+    # just train the model from scratch
 
-
-
-
-
+    pass
 
 
 
