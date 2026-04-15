@@ -279,6 +279,23 @@ class GPT(nn.Module):
 if __name__ == '__main__':
     # trining loop
     # just train the model from scratch
+    # dataset -> convert it tokens -> test/val split
+    # dataloader -> training loop -> forward -> backward -> logging
+    # loss curve, lr scheduler, optimizer setup
+    # ddp training
+    num_iterations = 100
+    def model = GPT()
+    for i in range(num_iterations):
+        # Get the 
+        x = get_batch('train')
+        logits, loss = GPT(x)
+        model.backward(loss)
+        optimizer.step()
+        # print(loss, mfu, for each epoch)
+
+        
+
+
 
     pass
 
