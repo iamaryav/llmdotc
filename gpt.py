@@ -273,6 +273,8 @@ class GPT(nn.Module):
 # Like data loaders
 # tokenizers
 # save params/grads/files to .bin files
+# optimizers, and lr multipliers
+def get_batch(
 
 
 # -------------------------------------------
@@ -281,17 +283,43 @@ if __name__ == '__main__':
     # just train the model from scratch
     # dataset -> convert it tokens -> test/val split
     # dataloader -> training loop -> forward -> backward -> logging
-    # loss curve, lr scheduler, optimizer setup
+    # loss curve, lr multiplier, optimizer setup
     # ddp training
     num_iterations = 100
     def model = GPT()
-    for i in range(num_iterations):
-        # Get the 
-        x = get_batch('train')
-        logits, loss = GPT(x)
-        model.backward(loss)
+    x, y = get_batch("train")
+    for step in range(num_iterations + 1):
+
+        # ---------------------------------------------------
+        # Evaluate the loss and save the checkpoints
+        # if this iteration is the iteration 
+        # logs
+        # wandb savings
+        # save the checkpoint
+
+        # ---------------------------------------------------
+        # single training step
+        for micro_step in range(grad_accum_steps):
+            logits, loss = model(x, y)
+            loss = loss / grad_accum_steps
+            loss.backward()
+            x, y = get_batch('train')
+        
+        # optimizers
+        # gradient clipping 
+        if grad_clip > 0.0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+        lrm = get_lr_multiplier(step)
+        for group in optimizer.param_groups:
+            group["lr"] = initial_lr * lrm
         optimizer.step()
-        # print(loss, mfu, for each epoch)
+        model.zero_grad(set_to_none=True)
+
+        # ---------------------------------------------------
+        # training run logs and timings 
+
+
+
 
         
 
