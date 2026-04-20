@@ -274,7 +274,27 @@ class GPT(nn.Module):
 # tokenizers
 # save params/grads/files to .bin files
 # optimizers, and lr multipliers
-def get_batch(
+# learning rate decay scheduler (cosine with warmup)
+
+decay_lr = True # whether to decay the learning rate
+min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
+warmup_iters = 2000 # how many steps to warm up for
+lr_decay_iters = 600000 # should be ~= max_iters per Chinchilla
+learning_rate = 6e-4 # max learning rate
+
+def get_lr_multiplier(iter):
+    # Linear warmup with cosine decay
+    # 1) Linear warmup for warmup iters
+    if iter < warmup_iters:
+        return learning_rate * (iter + 1) / (warmup_iters + 1)
+    # 2) at last min learning rate to avoid zero in the end
+    if iter > lr_decay_iters:
+        return min_lr
+    # 3) cosine decay up to min_lr
+    decay_ratio = (iter - warmup_iters) / (lr_decay_iters - warmup_iters)
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # to coeff ranges 0..1
+    return min_lr + coeff * (learning_rate - min_lr)
 
 
 # -------------------------------------------
@@ -289,10 +309,10 @@ if __name__ == '__main__':
     # math needs to be done
     grad_accum_steps = 8
     grad_clip = 1.0
-    learning_rate = 6e-4
+    initial_lr = 6e-4
     # config = 
-    model = GPT()
-    # optimizers = 
+    model = GPT(config)
+    # optimizers = model.setup_optimizer()
     x, y = get_batch("train")
     for step in range(num_iterations + 1):
 
