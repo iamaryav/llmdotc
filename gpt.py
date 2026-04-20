@@ -286,7 +286,13 @@ if __name__ == '__main__':
     # loss curve, lr multiplier, optimizer setup
     # ddp training
     num_iterations = 100
-    def model = GPT()
+    # math needs to be done
+    grad_accum_steps = 8
+    grad_clip = 1.0
+    learning_rate = 6e-4
+    # config = 
+    model = GPT()
+    # optimizers = 
     x, y = get_batch("train")
     for step in range(num_iterations + 1):
 
