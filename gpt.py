@@ -296,6 +296,9 @@ def get_lr_multiplier(iter):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # to coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
+def get_batch():
+    pass
+
 
 # -------------------------------------------
 if __name__ == '__main__':
@@ -308,11 +311,25 @@ if __name__ == '__main__':
     num_iterations = 100
     # math needs to be done
     grad_accum_steps = 8
+    weight_decay = 1e-1
+    beta1 = 0.9
+    beta2 = 0.95
     grad_clip = 1.0
-    initial_lr = 6e-4
-    # config = 
+    device_type = "cuda" if torch.cuda.is_available() else "cpu"
+    vocab_size = 50304
+    hidden_size = 768
+    intermediate_size = 768 * 4
+    max_seq_len = 2048
+    num_hidden_layers = 12
+    num_attention_heads = 12
+    num_kv_heads = 2
+    dropout = 0.2
+    bias = False
+    sliding_window = max_seq_len // 4
+    model_args = dict(vocab_size=vocab_size, hidden_size=hidden_size, intermediate_size=intermediate_size, max_seq_len=max_seq_len,                 num_hidden_layers=num_hidden_layers, num_attention_heads=num_attention_heads, num_kv_heads=num_kv_heads, dropout=dropout)
+    config = GPTConfig(**model_args)
     model = GPT(config)
-    # optimizers = model.setup_optimizer()
+    optimizers = model.setup_optimizer(weight_decay, learning_rate, (beta1, beta2), device_type)
     x, y = get_batch("train")
     for step in range(num_iterations + 1):
 
@@ -343,15 +360,4 @@ if __name__ == '__main__':
 
         # ---------------------------------------------------
         # training run logs and timings 
-
-
-
-
-        
-
-
-
-    pass
-
-
 
