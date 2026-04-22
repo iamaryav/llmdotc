@@ -296,8 +296,25 @@ def get_lr_multiplier(iter):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # to coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
-def get_batch():
-    pass
+device_type = "cuda" if torch.cuda.is_available() else "cpu"
+
+#  A tiny data loader
+data = "shakespeare.txt"
+data_dir = os.path.join("data", dataset)
+def get_batch(split):
+    if split == "train":
+        data = np.memmap(os.path.join(data_dir, "train.bin"), dtype=np.uint16, mode='r')
+    else:
+        data = np.memmap(os.path.join(data_dir, "val.bin"), dtype=np.uint16, mode='r')
+    ix = torch.randint(len(data) - max_seq_len, (batch_size,))
+    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
+    y = torch.stack([torch.from_numpy((data[i + 1:i + block_size + 1]).astype(np.int64)) for i in ix])
+    if device_type == "cuda":
+        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
+    else:
+        x, y = x.to(device), y.to(device)
+
+    return x, y
 
 
 # -------------------------------------------
