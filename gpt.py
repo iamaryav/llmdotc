@@ -144,7 +144,7 @@ class GPT(nn.Module):
         self.config = config
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)
         self.layers = nn.ModuleList([DecoderLayer(config) for layer_idx in range(config.num_hidden_layers)])
-        self.norm = nn.LayerNorm(config.hidden_size) # change it to RMSNorm
+        # self.norm = nn.LayerNorm(config.hidden_size) 
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, config.bias)
 
         # init all weights
@@ -236,7 +236,7 @@ class GPT(nn.Module):
         x = tok_emb
         for layer in self.layers:
             x = layer(x, cos, sin, kv_cache=kv_cache)
-        x = self.norm(x)
+        x = norm(x)
         logits = self.lm_head(x)
 
         if target == None:
@@ -296,20 +296,21 @@ def get_lr_multiplier(iter):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # to coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
-device_type = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
+batch_size = 8
 #  A tiny data loader
 data = "shakespeare.txt"
-data_dir = os.path.join("data", dataset)
+data_dir = os.path.join("data", data)
 def get_batch(split):
     if split == "train":
         data = np.memmap(os.path.join(data_dir, "train.bin"), dtype=np.uint16, mode='r')
     else:
         data = np.memmap(os.path.join(data_dir, "val.bin"), dtype=np.uint16, mode='r')
     ix = torch.randint(len(data) - max_seq_len, (batch_size,))
-    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
-    y = torch.stack([torch.from_numpy((data[i + 1:i + block_size + 1]).astype(np.int64)) for i in ix])
-    if device_type == "cuda":
+    x = torch.stack([torch.from_numpy((data[i:i+config.max_seq_len]).astype(np.int64)) for i in ix])
+    y = torch.stack([torch.from_numpy((data[i + 1:i + config.max_seq_len + 1]).astype(np.int64)) for i in ix])
+    if device == "cuda":
         x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
     else:
         x, y = x.to(device), y.to(device)
@@ -370,9 +371,9 @@ if __name__ == '__main__':
         if grad_clip > 0.0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         lrm = get_lr_multiplier(step)
-        for group in optimizer.param_groups:
-            group["lr"] = initial_lr * lrm
-        optimizer.step()
+        for group in optimizers.param_groups:
+            group["lr"] = learning_rate * lrm
+        optimizers.step()
         model.zero_grad(set_to_none=True)
 
         # ---------------------------------------------------
