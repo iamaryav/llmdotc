@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import inspect
+import numpy as np
 
 
 # Training pipeline
@@ -309,16 +310,25 @@ def _peek_data_shard(filename: str):
     # this information saved during train/val bin file creation
     path = ""
     with open(path, "rb") as f:
-        # read first 1024 bytes
-        header = np.formbuffer(f.read(4 * 256), dtype=np.int32)
+        # read first which 256 int32 value with each size 4 bytes
+        header = np.frombuffer(f.read(4 * 256), dtype=np.int32)
         if header[0] != 20240520:
             print("ERROR: Magic number mismatch in the data .bin file")
         assert header[1] == 1, "unsupported version"
         num_token = header[2]
         return num_token
 def _load_data_shard(filename: str):
-
-    pass
+    # read the data from file shard
+    with open(filename, "rb") as f:
+        # read first which 256 int32 value with each size 4 bytes
+        header = np.frombuffer(f.read(4 * 256), np.int32)
+        assert header[0] == 20240520, "magic number mismatch in the .bin file"
+        assert header[1] == 1, "unsupported file version"
+        num_tokens = header[2]
+        # the rest of the content file is token
+        tokens = np.frombuffer(f.read(), np.uint16)
+    assert len(tokens) == num_tokens, "token mismatch from header"
+    return tokens
 
 
 # --------------------------------------------------------------
