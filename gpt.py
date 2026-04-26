@@ -298,6 +298,30 @@ def get_lr_multiplier(iter):
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+# --------------------------------------------------------------
+# need to implement better data loader
+# there will be list of files - file shard
+# with metadata in header with some info like 
+# number of tokens
+
+def _peek_data_shard(filename: str):
+    # read the .bin file
+    # this information saved during train/val bin file creation
+    path = ""
+    with open(path, "rb") as f:
+        # read first 1024 bytes
+        header = np.formbuffer(f.read(4 * 256), dtype=np.int32)
+        if header[0] != 20240520:
+            print("ERROR: Magic number mismatch in the data .bin file")
+        assert header[1] == 1, "unsupported version"
+        num_token = header[2]
+        return num_token
+def _load_data_shard(filename: str):
+
+    pass
+
+
+# --------------------------------------------------------------
 batch_size = 8
 #  A tiny data loader
 data = "shakespeare.txt"
