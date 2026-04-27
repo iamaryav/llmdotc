@@ -300,10 +300,7 @@ def get_lr_multiplier(iter):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # --------------------------------------------------------------
-# need to implement better data loader
-# there will be list of files - file shard
-# with metadata in header with some info like 
-# number of tokens
+# Distributed data loader
 def print0(*args, **kwargs):
     # updating the print statement to print from master gpu - 0
     if int(os.environ.get("RANK", 0)) == 0:
@@ -321,6 +318,7 @@ def _peek_data_shard(filename: str):
         assert header[1] == 1, "unsupported version"
         num_token = header[2]
         return num_token
+
 def _load_data_shard(filename: str):
     # read the data from file shard
     with open(filename, "rb") as f:
@@ -408,7 +406,16 @@ if __name__ == '__main__':
     # dataset -> convert it tokens -> test/val split
     # dataloader -> training loop -> forward -> backward -> logging
     # loss curve, lr multiplier, optimizer setup
+    # variable override
+
     # ddp training
+    # ddp variable is set by torch
+    ddp = int(os.environ.get("RANK", -1)) != -1 # is this a ddp run
+    if ddp:
+        pass
+    else:
+        pass
+
     num_iterations = 100
     # math needs to be done
     grad_accum_steps = 8
