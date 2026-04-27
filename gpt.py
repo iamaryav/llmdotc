@@ -304,6 +304,10 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 # there will be list of files - file shard
 # with metadata in header with some info like 
 # number of tokens
+def print0(*args, **kwargs):
+    # updating the print statement to print from master gpu - 0
+    if int(os.environ.get("RANK", 0)) == 0:
+        print(*args, **kwargs)
 
 def _peek_data_shard(filename: str):
     # read the .bin file
@@ -329,6 +333,51 @@ def _load_data_shard(filename: str):
         tokens = np.frombuffer(f.read(), np.uint16)
     assert len(tokens) == num_tokens, "token mismatch from header"
     return tokens
+
+class DistributedDataLoader:
+    def __init__(self, filename_pattern, B, T, process_rank, num_processes):
+        self.B = B
+        self.T = T
+        self.process_rank = process_rank
+        self.num_processes = num_processes
+        self.files = sorted(glob.glob(filename_pattern))
+        assert len(self.files) > 0, f"didn't find any files that matches the pattern: {filename_pattern}"
+        num_tokens_total = 0
+        for file in self.files:
+            shard_num_tokens = _peek_data_shard(file)
+            assert shard_num_tokens >= num_processes * B * T + 1, f"not enough tokens for 1 batch in the file"
+            num_tokens_total += shard_num_tokens
+        self.num_tokens_total = num_tokens_total
+        print0(f"DataLoader: total number of tokens {num_tokens_total:,} across {len(self.files)} files")
+
+        self.current_shard = None
+        self.reset()
+
+    def reset(self):
+
+        if self.current_shard != 0:
+            self.current_shard = 0
+            self.tokens = _load_data_shard(self.files[self.current_shard])
+        self.current_position = self.process_rank * self.B * self.T
+
+    def advance(self): # advance to the next data shard
+        self.current_shard = (self.current_shard + 1 ) % len(self.files)
+        self.current_position = self.process_rank * self.B * self.T
+        self.tokens = _load_data_shard(self.files[self.current_shard])
+
+    def next_batch(self):
+        B = self.B
+        T = self.T
+        buff = self.tokens[self.current_position: self.current_position + B * T + 1]
+        buff = torch.tensor(buff.astype(np.int32), dtype=torch.long)
+        x = (buff[:-1]).view(B, T)
+        y = (buff[1:]).view(B, T)
+        # next position for this gpu in current shard
+        self.current_position += B * T * self.num_processes
+        # if not enough token for next batch for all the gpus then move to the next shard
+        if self.current_position + ( B * T * self.num_processes + 1) > len(self.tokens):
+            self.advance()
+        return x, y
 
 
 # --------------------------------------------------------------
