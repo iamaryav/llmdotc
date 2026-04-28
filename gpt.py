@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import inspect
 import numpy as np
+import os
+from torch.distributed
 
 
 # Training pipeline
@@ -412,9 +414,56 @@ if __name__ == '__main__':
     # ddp variable is set by torch
     ddp = int(os.environ.get("RANK", -1)) != -1 # is this a ddp run
     if ddp:
-        pass
+        assert torch.cuda.is_available(), "we need cuda for DDP"
+        init_process_group(backend= "nccl")
+        ddp_rank = int(os.environ.get("RANK"))
+        ddp_local_rank = int(os.environ.get("LOCAL_RANK"))
+        ddp_world_size = int(os.environ.get("WORLD_SIZE"))
+        device = f"cuda:{ddp_local_rank}"
+        torch.cuda.set_device(device)
+        master_process = ddp_rank == 0 # we will use master process for logging and checkpointing
+        seed_offset = 0
+        zero_stage = args.zero_stage
     else:
-        pass
+        ddp_rank = 0
+        ddp_local_rank = 0
+        ddp_world_size = 1
+        master_process = True
+        seed_offset = 0
+        if args.device:
+            device = args.device
+        else:
+            device = "cpu"
+            # auto detecting the device
+            if torch.cuda.is_available():
+                device = "cuda"
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                device = "mps"
+    print(f"using device: {device}")
+    device_type = "cuda" if "cuda" in device else "cpu"
+
+    tokens_per_fwdbwd = B * T * ddp_world_size
+    assert args.total_batch_size % tokens_per_fwdbwd == 0
+    grad_accum_steps = args.total_batch_size // tokens_per_fwdbwd
+    print0(f"total desired batch size: {args.total_batch_size}")
+    print0(f"=> calculated grad accum steps: {grad_accum_steps}")
+
+    # setup the context manager following the desired data type and device
+    ptdtype = {"float32": torch.float32, "bfloat16": torch.bfloat16, "float16": torch.float16}[args.dtype]
+    ctx = torch.amp.autocast(device_type=device_type, dtype=ptdtype) if device_type == "cuda" else nullcontext()
+
+    # rng
+    torch.manual_seed(42)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(42)
+
+    # set the torch precision mode to use TensorFloat32(TF32) for matmuls
+    if args.tensorcores:
+        torch.set_float32_matmul_precision("high")
+
+    assert arg.flash in {0, 1}
+    FLASH = arg.flash
+    
 
     num_iterations = 100
     # math needs to be done
