@@ -463,7 +463,21 @@ if __name__ == '__main__':
 
     assert arg.flash in {0, 1}
     FLASH = arg.flash
-    
+
+    # model initialization from scratch using command line args
+    if args.model[0] == "d":
+        # from scratch (random weights)
+        model_config = {
+            "d12": GPTConfig(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768),
+            "d24": GPTConfig(block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024),
+            "d36": GPTConfig(block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280),
+            "d48": GPTConfig(block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600),
+        }[args.model]
+        model = GPT(model_config)
+
+    # will write code to write checkpoint and other things in bin format
+    # latert for now ddp is focus
+
 
     num_iterations = 100
     # math needs to be done
