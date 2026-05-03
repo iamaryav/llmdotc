@@ -4,7 +4,8 @@ import torch.nn.functional as F
 import inspect
 import numpy as np
 import os
-from torch.distributed
+from torch.distributed import init_process_group
+import torch._inductor.config as config
 
 
 # Training pipeline
@@ -465,6 +466,7 @@ if __name__ == '__main__':
     FLASH = arg.flash
 
     # model initialization from scratch using command line args
+    # d with number of layers
     if args.model[0] == "d":
         # from scratch (random weights)
         model_config = {
@@ -474,6 +476,16 @@ if __name__ == '__main__':
             "d48": GPTConfig(block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600),
         }[args.model]
         model = GPT(model_config)
+    model.train()
+    model.to(device)
+    if args.model:
+        if hasattr(cofig, "coordinate_dsecent_tuning"):
+            config.coordinate_descent_tuning = True
+        print0(f"compiling the model..."
+        torch.compile(model)
+    #----------------------------------------------------------------------------
+    # load tokens using DistributedDateLoader
+    #----------------------------------------------------------------------------
 
     # will write code to write checkpoint and other things in bin format
     # latert for now ddp is focus
