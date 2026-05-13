@@ -380,7 +380,8 @@ class DistributedDataLoader:
             self.advance()
         return x, y
 
-
+# --------------------------------------------------------------
+# I will generate .bin file for c later
 # --------------------------------------------------------------
 batch_size = 8
 #  A tiny data loader
@@ -481,10 +482,14 @@ if __name__ == '__main__':
     if args.model:
         if hasattr(cofig, "coordinate_dsecent_tuning"):
             config.coordinate_descent_tuning = True
-        print0(f"compiling the model..."
+        print0(f"compiling the model...")
         torch.compile(model)
     #----------------------------------------------------------------------------
     # load tokens using DistributedDateLoader
+    train_loader = DistributedDataLoader(args.input_bin, B, T, ddp_rank, ddp_world_size)
+    val_loader = None
+    if args.input_val_bin:
+        val_loader = DistributedDataLoader(args.input_val_bin, B, T, ddp_rank, ddp_world_size)
     #----------------------------------------------------------------------------
 
     # will write code to write checkpoint and other things in bin format
@@ -514,6 +519,13 @@ if __name__ == '__main__':
     model = GPT(config)
     optimizers = model.setup_optimizer(weight_decay, learning_rate, (beta1, beta2), device_type)
     x, y = get_batch("train")
+    #--------------------------------------------------------
+    # Main training loop
+    # wrap model into ddp container
+    if ddp: 
+        model = DDP(model, device_ids=[ddp_local_rank])
+
+    #--------------------------------------------------------
     for step in range(num_iterations + 1):
 
         # ---------------------------------------------------
