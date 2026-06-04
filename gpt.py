@@ -514,16 +514,31 @@ if __name__ == '__main__':
     dropout = 0.2
     bias = False
     sliding_window = max_seq_len // 4
-    model_args = dict(vocab_size=vocab_size, hidden_size=hidden_size, intermediate_size=intermediate_size, max_seq_len=max_seq_len,                 num_hidden_layers=num_hidden_layers, num_attention_heads=num_attention_heads, num_kv_heads=num_kv_heads, dropout=dropout)
-    config = GPTConfig(**model_args)
-    model = GPT(config)
-    optimizers = model.setup_optimizer(weight_decay, learning_rate, (beta1, beta2), device_type)
-    x, y = get_batch("train")
     #--------------------------------------------------------
     # Main training loop
     # wrap model into ddp container
+    model_args = dict(vocab_size=vocab_size, hidden_size=hidden_size, intermediate_size=intermediate_size, max_seq_len=max_seq_len,                 num_hidden_layers=num_hidden_layers, num_attention_heads=num_attention_heads, num_kv_heads=num_kv_heads, dropout=dropout)
+    config = GPTConfig(**model_args)
+    model = GPT(config)
+    x, y = get_batch("train")
     if ddp: 
         model = DDP(model, device_ids=[ddp_local_rank])
+    optimizers = model.setup_optimizer(weight_decay, learning_rate, (beta1, beta2), device_type)
+
+    # creating logging directory if it doesn't exist
+    logfile = None
+    if args.output_dir:
+        os.makedirs(args.output_dir, exist_ok=True)
+        logfile = os.path.join(args.output_dir, "main.log")
+        with open(logfile, "w") as f:
+            pass
+
+    if device == "cuda":
+        torch.cuda.reset_peak_memory_stats()
+
+    timings = []
+    norms = -1.0
+    # now work on the main loop
 
     #--------------------------------------------------------
     for step in range(num_iterations + 1):
