@@ -405,6 +405,7 @@ def get_batch(split):
 
 # -------------------------------------------
 if __name__ == '__main__':
+    import time
     # trining loop
     # just train the model from scratch
     # dataset -> convert it tokens -> test/val split
@@ -537,11 +538,25 @@ if __name__ == '__main__':
         torch.cuda.reset_peak_memory_stats()
 
     timings = []
-    norms = -1.0
+    norms = -1.0 # dummy value to print in inference-only
     # now work on the main loop
 
     #--------------------------------------------------------
     for step in range(num_iterations + 1):
+        t0 = time.time()
+        last_step = (step == args.num_iterations)
+
+        # evaluate the validation dataset
+        if (args.val_loss_every > 0 \
+            and (steps % args.val_loss_every == 0 or last_step)) \
+            and (val_loader is not None):
+            model.eval() 
+            val_loader.reset() # to do validation against same set of data every time
+            with torch.no_grad():
+                val_loss = 0.0
+                for _ in range(args.val_max_steps):
+                    x, y = val_loader.next_batch()
+                    x, y = x.to(device), y.to(device)
 
         # ---------------------------------------------------
         # Evaluate the loss and save the checkpoints
