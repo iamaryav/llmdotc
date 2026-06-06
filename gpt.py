@@ -467,6 +467,9 @@ if __name__ == '__main__':
     assert arg.flash in {0, 1}
     FLASH = arg.flash
 
+    # init the titokenizer
+    enc = tiktoken.get_encoding("gpt2")
+
     # model initialization from scratch using command line args
     # d with number of layers
     if args.model[0] == "d":
@@ -546,7 +549,7 @@ if __name__ == '__main__':
         t0 = time.time()
         last_step = (step == args.num_iterations)
 
-        # evaluate the validation dataset
+        # evaluate the model on validation dataset
         if (args.val_loss_every > 0 \
             and (steps % args.val_loss_every == 0 or last_step)) \
             and (val_loader is not None):
@@ -557,6 +560,65 @@ if __name__ == '__main__':
                 for _ in range(args.val_max_steps):
                     x, y = val_loader.next_batch()
                     x, y = x.to(device), y.to(device)
+                    _, loss = model(x, y, return_logits=False)
+                    val_loss += loss.item()
+                val_loss /= loss / args.val_max_steps
+            # log to console and to file
+            print0(f"val loss {val_loss}")
+            if master_process and logfile is not None:
+                with open(logfile, "a") as f:
+                    f.write("s:%d tel:%f\n" % (step, val_loss))
+        # model inference on the master process
+        if (args.sample_every > 0 \
+            and (step % args.sample_every == 0 or last_step)) \
+            and master_process:
+            model.eval()
+            # to mark start of the output sequence we use "<|endoftext|> token
+            start_ids = [enc.eot_token]
+            xg = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
+            max_new_tokens = 32
+            temperature = 1.0
+            top_k = 40
+            yg = model.generate(xg, max_new_tokens, temperature=temperature, top_k=top_k)
+            print0('--------------------')
+            print0(enc.decode(yg[0].tolist()))
+            print0('--------------------')
+
+        # break here so last step validation and inference can happen
+        if last_step:
+            break
+        
+        # ---------------------- Training Section Begin ------------------
+        model.train()
+        optimizer.zero_grad(set_to_None=True)
+        # if overfitting a single batch, reset the loader here
+        if args.overfit_single_batch:
+            train_loader.reset()
+
+        # micro batch where we do gradient accumulation to reach desired total batch size
+        lossf = 0.0 # mean loss over the accumulation steps
+        for micro_step in range(grad_accum_steps):
+            x, y = train_loader.next_batch()
+            x, y = x.to(device), y.to(device)
+            if ddP:
+                # hack toggle variable other the official way to do is# with model.no_sync()
+                mode.require_backward_grad_sync = (micro_step == grad-accum_steps - 1)
+            # forward pass
+            with ctx:
+                _, loss = model(x, y, return_logits=False)
+                loss = loss / grad_accum_steps
+                lossf += loss.detach()
+            # backward pass
+            if not args.inference_only:
+                loss.backward()
+
+            if ddp:
+                dist.all_reduce(lossf, op=dist.ReduceOp.AVG)
+            lossf = lossf.item()
+            norm = torch.nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
+
+            # learning rate for this iteration
+        # ---------------------- Training Section End ------------------
 
         # ---------------------------------------------------
         # Evaluate the loss and save the checkpoints
