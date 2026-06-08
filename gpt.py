@@ -406,6 +406,12 @@ def get_batch(split):
 # -------------------------------------------
 if __name__ == '__main__':
     import time
+    import argparse
+    import tiktoken
+    print0(f"Running pytorch {torch.version.__version__}")
+
+    parser = argparse.ArguementParser()
+    parser.add_arguement("--input_bin", type=str, default="dev/data/tinyshakespeare/tiny_shakespeare_val.bin", help="input .bin to train on")
     # trining loop
     # just train the model from scratch
     # dataset -> convert it tokens -> test/val split
@@ -551,7 +557,7 @@ if __name__ == '__main__':
 
         # evaluate the model on validation dataset
         if (args.val_loss_every > 0 \
-            and (steps % args.val_loss_every == 0 or last_step)) \
+            and (step % args.val_loss_every == 0 or last_step)) \
             and (val_loader is not None):
             model.eval() 
             val_loader.reset() # to do validation against same set of data every time
@@ -562,7 +568,7 @@ if __name__ == '__main__':
                     x, y = x.to(device), y.to(device)
                     _, loss = model(x, y, return_logits=False)
                     val_loss += loss.item()
-                val_loss /= loss / args.val_max_steps
+                val_loss /= args.val_max_steps
             # log to console and to file
             print0(f"val loss {val_loss}")
             if master_process and logfile is not None:
@@ -590,7 +596,7 @@ if __name__ == '__main__':
         
         # ---------------------- Training Section Begin ------------------
         model.train()
-        optimizer.zero_grad(set_to_None=True)
+        optimizer.zero_grad(set_to_none=True)
         # if overfitting a single batch, reset the loader here
         if args.overfit_single_batch:
             train_loader.reset()
@@ -600,9 +606,9 @@ if __name__ == '__main__':
         for micro_step in range(grad_accum_steps):
             x, y = train_loader.next_batch()
             x, y = x.to(device), y.to(device)
-            if ddP:
+            if ddp:
                 # hack toggle variable other the official way to do is# with model.no_sync()
-                mode.require_backward_grad_sync = (micro_step == grad-accum_steps - 1)
+                model.require_backward_grad_sync = (micro_step == grad_accum_steps - 1)
             # forward pass
             with ctx:
                 _, loss = model(x, y, return_logits=False)
@@ -612,39 +618,47 @@ if __name__ == '__main__':
             if not args.inference_only:
                 loss.backward()
 
-            if ddp:
-                dist.all_reduce(lossf, op=dist.ReduceOp.AVG)
-            lossf = lossf.item()
-            norm = torch.nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
-
-            # learning rate for this iteration
-        # ---------------------- Training Section End ------------------
-
-        # ---------------------------------------------------
-        # Evaluate the loss and save the checkpoints
-        # if this iteration is the iteration 
-        # logs
-        # wandb savings
-        # save the checkpoint
-
-        # ---------------------------------------------------
-        # single training step
-        for micro_step in range(grad_accum_steps):
-            logits, loss = model(x, y)
-            loss = loss / grad_accum_steps
-            loss.backward()
-            x, y = get_batch('train')
-        
-        # optimizers
-        # gradient clipping 
-        if grad_clip > 0.0:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+        if ddp:
+            dist.all_reduce(lossf, op=dist.ReduceOp.AVG)
+        lossf = lossf.item()
+        norm = torch.nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
+        # learning rate for this iteration
         lrm = get_lr_multiplier(step)
         for group in optimizers.param_groups:
-            group["lr"] = learning_rate * lrm
-        optimizers.step()
-        model.zero_grad(set_to_none=True)
+            group['lr'] = learning_rate * lrm
+        # step the optimizer
+        optimizer.step()
+        # ---------------------- Training Section End ------------------
 
-        # ---------------------------------------------------
-        # training run logs and timings 
+        # diagnostics, prints, logging
+        if device == "mps":
+            torch.mps.synchronize()
+        elif device == "cuda":
+            torch.cuda.synchronize()
+        t1 = time.time()
+
+        # skip 0th iteration for logging
+        tokens_per_second = grad_accum_steps * ddp_world_size * B * T / (t1 - t0)
+        print0(f"step {step+1:4d}/{args.num_iterations} | train loss {lossf:.6f} | norm {norm:.4f} | lr {learning_rate * lrm:.2e} | ({(t1-t0)*1000:.2f} ms | {tokens_per_second:.0f} tok/s)")
+
+        # log to log file
+        if master_process and logfile is not None:
+            with open(logfile, "a") as f:
+                f.write("s:%d trl:%f\n" % (step, lossf))
+
+
+        # keep track of the smooth timings, last 20 iterations
+        if step > 0 and step > args.num_iterations - 20:
+            timings.append(t1-t0)
+
+    # prin the average of the last 20 timings, to get soomth time
+    timings = timings[-20:]
+    print0(f"final {len(timings)} iters avg: {np.mean(timings)*1000:.3f}ms")
+    print0(f"peak memory consumption: {torch.cuda.max_memory_allocate() // 1024 // 1024} MiB")
+
+# -------------------------------------------------------
+# clean up 
+if ddp:
+    destroy_process_group()
+
 
