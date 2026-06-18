@@ -67,7 +67,7 @@ class CausalSelfAttention(nn.Module):
 
 
     def forward(self, x, cos, sin, kv_cache=False):
-        # x -> (batch, max_seq_len, hidden_size)
+        # x -> (batch, seq_len, hidden_size)
         batch, seq_len = x.shape[:-1]
         # (batch, num_attention_heads, seq_len, head_dim)
         q = self.q_proj(x).view(batch, seq_len, self.num_attention_heads, self.head_dim).transpose(1, 2)
@@ -145,6 +145,7 @@ class DecoderLayer(nn.Module):
 
     def forward(self, x, cos, sin, kv_cache=False):
         # pre-attention layernorm -> self attention -> post-attention layernorm -> ffn
+        # residual connection
         x = x + self.self_attn(self.input_layernorm(x), cos, sin, kv_cache=kv_cache)
         x = x + self.ffn(self.post_attention_norm(x))
         return x
@@ -236,8 +237,8 @@ class GPT(nn.Module):
 
     def forward(self, input_ids, target=None, device=None, kv_cache=False):
 
-        batch, seq_len = input_ids.shape
-        tok_emb = self.embed_tokens(input_ids)
+        batch, seq_len = input_ids.shape # (batch, seq_len)
+        tok_emb = self.embed_tokens(input_ids) # (batch, seq_len, hidden_size)
 
         # precompute rotary embeddings
         head_dim = self.config.hidden_size // self.config.num_attention_heads
