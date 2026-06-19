@@ -1,1 +1,4 @@
 __pycache__/
+*.out
+*.o
+residual_forward
