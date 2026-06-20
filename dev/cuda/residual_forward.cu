@@ -2,31 +2,20 @@
 #include<stdlib.h>
 #include<cuda_runtime.h>
 
+#include "common.h"
 
 
+
+// ------------------------------------------------------------
 // cpu code
 // x = x + causal_attn(ln(x))
 // two input array and need to add them
-//
-//
-//
-
-float* make_random_float(size_t N) {
-	float* arr = (float*)malloc(N * sizeof(float));
-
-	for (size_t i = 0; i < N; i++) {
-		arr[i] = ((float)rand() / RAND_MAX); // 0..1
-	}
-	return arr;
-}
-
 
 void residual_forward_cpu(float* out, const float* inp1, const float* inp2, const int N){
 	for(int i = 0; i < N; i++){
 		out[i] = inp1[i] + inp2[i];
 	}
 }
-
 
 // ------------------------------------------------------------
 // gpu kernels 
@@ -36,14 +25,10 @@ __global__ void residual_forward_kernel1(float* out, const float* inp1, const fl
 	if (idx < N){
         out[idx] = inp1[idx] + inp2[idx];
 	}
-
 }
 
-
 // ------------------------------------------------------------
-
 // run code
-
 
 int main(int argc, char** argv){
 
