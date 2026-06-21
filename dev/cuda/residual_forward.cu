@@ -27,6 +27,11 @@ __global__ void residual_forward_kernel1(float* out, const float* inp1, const fl
 	}
 }
 
+__global__ void residual_forward_kernel2(){
+
+
+}
+
 // ------------------------------------------------------------
 // run code
 
