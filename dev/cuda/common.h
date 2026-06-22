@@ -2,6 +2,12 @@
 #include<stdlib.h>
 
 
+template<class T>
+__host__ __device__ T ceil_div(T dividend, T divisor) {
+    return (divident + divisor - 1) / divisor;
+}
+
+
 // -------------------------------------------------------------------
 // Helper Methods
 
@@ -33,11 +39,34 @@ template<class TargetType>
     return status;
 }
 
+// -------------------------------------------------------------------
+// reduced/mixed precision utilities
+#if defined(ENABLE_BF16)
+typedef __nv_bfloat16 floatX;
+typedef __nv_bffloat16 floatN;
+#define CUBLAS_LOWP CUDA_R_16BF
+#define CUBLAS_LOWP_COMPUTE CUBLAS_COMPUTE_32F
+
+#elif defined(ENABLE_FP16)
+
+typedef half floatX;
+typedef half floatN;
+
+#else
+
+typedef float floatX;
+typedef float floatN;
+
+#endif
+
+typedef Packed128<floatX> x128;
+
+
 
 
 
 // -------------------------------------------------------------------
-
+// random utils
 
 float* make_random_float(size_t N) {
 	float* arr = (float*)malloc(N * sizeof(float));
