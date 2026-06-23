@@ -38,13 +38,20 @@ __global__ void residual_forward_kernel2(){
 void residual_forward1(floatX* out, const floatX* inp1, const floatX* inp2, int N, const int block_size) {
     const int grid_size = ceil_div(N, block_size);
     residual_forward_kernel1<<<grid_size, block_size>>>(out, inp1, inp2, N);
-    cudaCheck(cudaGetLastError())
+    cudaCheck(cudaGetLastError());
 }
 
 // kernel version dispatch
+
+void residual_forward2(floatX* out, const floatX* inp1, const floatX* inp2, int N, const int block_size) {
+    const int grid_size = ceil_div(N, block_size);
+    residual_forward_kernel2<<<grid_size, block_size>>>();
+    cudaCheck(cudaGetLastError());
+}
+
 void residual_forward(int kernel_num,
                       floatX* out,
-                      const floatX*, inp1,
+                      const floatX* inp1,
                       const floatX* inp2,
                       int N,
                       int block_size) {
@@ -55,7 +62,7 @@ void residual_forward(int kernel_num,
         case 2:
             residual_forward2(out, inp1, inp2, N, block_size);
             break;
-        defaul:
+        default:
             printf("Invalid kernel number \n");
             exit(1);
     }
@@ -92,11 +99,11 @@ int main(int argc, char** argv){
     cudaCheck(cudaMalloc(&d_out, N * sizeof(float)));
     cudaCheck(cudaMalloc(&d_inp1, N * sizeof(float)));
     cudaCheck(cudaMalloc(&d_inp2, N * sizeof(float)));
-    cudaCheck(memcpy_convert(d_inp1, inp1, N * sizeof(float), cudaMemcpyHostToDevice));
-    cudaCheck(memcpy_convert(d_inp2, inp2, N * sizeof(float), cudaMemcpyHostToDevice));
+    cudaCheck(memcpy_convert(d_inp1, inp1, N));
+    cudaCheck(memcpy_convert(d_inp2, inp2, N));
 
     // read kernel_num from command line
-    int kernel_num = 1
+    int kernel_num = 1;
     if (argc > 1) {
         kernel_num = atoi(argv[1]);
     }
@@ -120,7 +127,7 @@ int main(int argc, char** argv){
 #else
     float tol = 1e-2f;
 #endif
-        validate_result(d_out, out, "out", N, tol);
+        validate_result(d_out, c_out, "out", N, tol);
     }
 
     printf("All result match. Starting benchmarks. \n\n");

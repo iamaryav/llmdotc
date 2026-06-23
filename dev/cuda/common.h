@@ -4,7 +4,7 @@
 
 template<class T>
 __host__ __device__ T ceil_div(T dividend, T divisor) {
-    return (divident + divisor - 1) / divisor;
+    return (dividend + divisor - 1) / divisor;
 }
 
 
@@ -28,7 +28,7 @@ void cuda_check(cudaError_t error, const char *file, int line) {
 // -------------------------------------------------------------------
 // testing and benchmarking utils 
 template<class TargetType>
-[[nodidscard]] cudaError_t memcpy_convert(TargetType* d_ptr, float* h_ptr, size_t count) {
+[[nodiscard]] cudaError_t memcpy_convert(TargetType* d_ptr, float* h_ptr, size_t count) {
     // copy from host to device with data type conversion
     TargetType* converted = (TargetType*)malloc(count * sizeof(TargetType));
     for (int i = 0; i < count; i++){
@@ -39,11 +39,13 @@ template<class TargetType>
     return status;
 }
 
+template<class TargetType>
+
 // -------------------------------------------------------------------
 // reduced/mixed precision utilities
 #if defined(ENABLE_BF16)
 typedef __nv_bfloat16 floatX;
-typedef __nv_bffloat16 floatN;
+typedef __nv_bfloat16 floatN;
 #define CUBLAS_LOWP CUDA_R_16BF
 #define CUBLAS_LOWP_COMPUTE CUBLAS_COMPUTE_32F
 
