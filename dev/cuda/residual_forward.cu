@@ -34,6 +34,13 @@ __global__ void residual_forward_kernel2(){
 
 // ------------------------------------------------------------
 // kernel launcher
+// TODO: 
+// validate result method in common.h
+// validate
+// benchmark kernel method
+// validate benchmark
+// kernel 2
+// then validate the whole file
 
 void residual_forward1(floatX* out, const floatX* inp1, const floatX* inp2, int N, const int block_size) {
     const int grid_size = ceil_div(N, block_size);

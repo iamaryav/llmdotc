@@ -39,7 +39,10 @@ template<class TargetType>
     return status;
 }
 
-template<class TargetType>
+template<class D, class T>
+void validate_result(D* device_result, const T* cpu_reference, const char* name, std::size_t num_elemnts, T tolerance=1e-4){
+
+}
 
 // -------------------------------------------------------------------
 // reduced/mixed precision utilities
