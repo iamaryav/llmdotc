@@ -85,6 +85,40 @@ void validate_result(D* device_result, const T* cpu_reference, const char* name,
     free(out_gpu);
 }
 
+template<class Kernel, class... KernelArgs>
+float benchmark_kernel(int repeats, Kernel kernel, KernelArgs&&... kernel_args) {
+    cudaEvent_t start, stop;
+    // scrub l2 cache between benchmakrs
+
+    int deviceIdx = 0;
+    cudaCheck(cudaSetDevice(deviceIdx));
+    cudaDeviceProp deviceProp;
+    cudaCheck(cudaGetDeviceProperties(&deviceProp, deviceIdx));
+    void* flush_buffer;
+    cudaCheck(cudaMalloc(&flush_buffer, deviceProp.l2CacheSize));
+
+    cudaCheck(cudaEventCreate(&start));
+    cudaCheck(cudaEventCreate(&stop));
+    float elapsed_time = 0.f;
+    for (int i = 0; i < repeats; i++){
+        // clear L2
+        cudaCheck(cudaMemset(flush_buffer, 0, deviceProp.l2CacheSize));
+        // start recording the timing of the kernel
+        cudaCheck(cudaEventRecord(start, nullptr));
+        kernel(std::forward<KernelArgs>(kernel_args)...);
+        cudaCheck(cudaEventRecord(stop, nullptr));
+        cudaCheck(cudaEventSynchronize(start));
+        cudaCheck(cudaEventSynchronize(stop));
+        float single_call;
+        cudaCheck(cudaEventElapsedTime(&single_call, start, stop));
+        elapsed_time += single_call;
+    }
+    cudaCheck(cudaFree(flush_buffer));
+    return elapsed_time / repeats;
+}
+
+
+
 // -------------------------------------------------------------------
 // reduced/mixed precision utilities
 #if defined(ENABLE_BF16)

@@ -80,13 +80,9 @@ void residual_forward(int kernel_num,
 
 int main(int argc, char** argv){
 
-	// int B = 8;
-	// int B = 32;
-	// int T = 1024;
-	// int C = 768;
-	int B = 64;
-	int T = 2048;
-	int C = 1024;
+	int B = 8;
+	int T = 1024;
+	int C = 768;
 	int N = B * T * C;
 
 	// creating memory on host and initializing with 
@@ -140,6 +136,20 @@ int main(int argc, char** argv){
     printf("All result matched. Starting benchmarks. \n\n");
 
     // benchmarking
+
+    for (int j = 0; j < sizeof(block_sizes) / sizeof(int); j++) {
+        int block_size = block_sizes[j]; 
+
+        int repeat_times = 1000;
+        float elapsed_time = benchmark_kernel(repeat_times, residual_forward, kernel_num, d_out, d_inp1, d_inp2, N, block_size);
+
+        // napkin math time
+        // for each (B, T, C) output, we do 2 read and 1 write, 4 bytes each
+        long memory_ops = B * T * C * 3 * 4;
+        float memory_bandwidth = memory_ops / elapsed_time / 1e6;
+
+        printf("block_size %4d | time %.4f ms | bandwidth %.2f GB/s \n", block_size, elapsed_time, memory_bandwidth);
+    }
     
 
 
