@@ -1,5 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<float.h>
+#include<math.h>
 
 
 template<class T>
@@ -40,7 +42,7 @@ template<class TargetType>
 }
 
 template<class D, class T>
-void validate_result(D* device_result, const T* cpu_reference, const char* name, std::size_t num_elemnts, T tolerance=1e-4){
+void validate_result(D* device_result, const T* cpu_reference, const char* name, std::size_t num_elements, T tolerance=1e-4){
     // copy the data from gpu to cpus
     D* out_gpu = (D*)malloc(num_elements * sizeof(D));
     cudaCheck(cudaMemcpy(out_gpu, device_result, num_elements * sizeof(D), cudaMemcpyDeviceToHost));
@@ -102,9 +104,6 @@ typedef float floatX;
 typedef float floatN;
 
 #endif
-
-typedef Packed128<floatX> x128;
-
 
 
 

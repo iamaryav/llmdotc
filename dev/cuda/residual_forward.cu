@@ -20,7 +20,7 @@ void residual_forward_cpu(float* out, const float* inp1, const float* inp2, cons
 // ------------------------------------------------------------
 // gpu kernels 
 
-__global__ void residual_forward_kernel1(float* out, const float* inp1, const float* inp2, const int N){
+__global__ void residual_forward_kernel1(floatX* out, const floatX* inp1, const floatX* inp2, const int N){
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx < N){
         out[idx] = inp1[idx] + inp2[idx];
@@ -118,10 +118,10 @@ int main(int argc, char** argv){
 
 	// running the kernel on cpu
 	residual_forward_cpu(c_out, inp1, inp2, N);
-	for (int i = 0; i < 10; i++){
-		printf("%f + %f = %f\n", inp1[i], inp2[i], c_out[i]);
-
-	}
+	// for (int i = 0; i < 10; i++){
+	// 	printf("%f + %f = %f\n", inp1[i], inp2[i], c_out[i]);
+	//
+	// }
 
     // time the kernel at the different block size
     int block_sizes[] = {32, 64, 128, 256, 512, 1024};
@@ -137,7 +137,9 @@ int main(int argc, char** argv){
         validate_result(d_out, c_out, "out", N, tol);
     }
 
-    printf("All result match. Starting benchmarks. \n\n");
+    printf("All result matched. Starting benchmarks. \n\n");
+
+    // benchmarking
     
 
 
