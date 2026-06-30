@@ -41,7 +41,46 @@ template<class TargetType>
 
 template<class D, class T>
 void validate_result(D* device_result, const T* cpu_reference, const char* name, std::size_t num_elemnts, T tolerance=1e-4){
+    // copy the data from gpu to cpus
+    D* out_gpu = (D*)malloc(num_elements * sizeof(D));
+    cudaCheck(cudaMemcpy(out_gpu, device_result, num_elements * sizeof(D), cudaMemcpyDeviceToHost));
+    int nfaults = 0;
+#ifndef ENABLE_BF16
+    float epsilon = FLT_EPSILON;
+#else
+    float epsilon = 0.079;
+#endif
+    for (int i = 0; i < num_elements; i++) {
+        // skip masked elements
+        if (!isfinite(cpu_reference[i]))
+            continue;
+        // print the few comparisions
+        if (i < 5) {
+            printf("%f %f\n", cpu_reference[i], (T)out_gpu[i]);
+        }
 
+        // effective tolerance is based on expected rounding error (epsilon),
+        // plus any specified tolerance
+        float t_eff = tolerance + fabs(cpu_reference[i]) * epsilon;
+
+        // ensure correctness for all elements
+        if (fabs(cpu_reference[i] - (T)out_gpu[i]) > t_eff) {
+            printf("Mismatch of %s at %d: CPU_ref: %f vs GPU: %f\n", name, i, cpu_reference[i], 
+                   (T)out_gpu[i]);
+            nfaults++;
+            if (nfaults >= 10) {
+                free(out_gpu);
+                exit(EXIT_FAILURE);
+            }
+        }
+
+    }
+
+    if (nfaults >= 10) {
+        free(out_gpu);
+        exit(EXIT_FAILURE);
+    }
+    free(out_gpu);
 }
 
 // -------------------------------------------------------------------
