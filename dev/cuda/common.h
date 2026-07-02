@@ -9,6 +9,21 @@ __host__ __device__ T ceil_div(T dividend, T divisor) {
     return (dividend + divisor - 1) / divisor;
 }
 
+// -------------------------------------------------------------------
+// Packed128 data structure, which forces the compiler to use 128-bit loads/stores
+// in GPUs that support (the LDG.128 and STS.128 instruction)
+template<class ElementType>
+struct alignas(16) Packed128{
+    packed128() = default;
+    __device__ explicit Packed128(int4 bits) {
+        static_assert(sizeof(bits) == sizeof(payload), "Size mismatch.");
+        memcpy(&payload, &bits, sizeof(bits));
+    }
+
+    __device__ static Packed128 constant(ElementType valud) {
+        Packed128 result;
+    }
+}
 
 // -------------------------------------------------------------------
 // Helper Methods

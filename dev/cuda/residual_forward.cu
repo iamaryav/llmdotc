@@ -27,18 +27,23 @@ __global__ void residual_forward_kernel1(floatX* out, const floatX* inp1, const 
 	}
 }
 
-__global__ void residual_forward_kernel2(){
-
-
+__global__ void residual_forward_kernel2(floatX* out, const floatX* inp1, const floatX* inp2, int N) {
+    int idx = (blockIdx.x * blockDim.x + threadIdx.x) * x128::size;
+    if (idx < N) {
+        x128 packed_out;
+        x128 packed_inp1 = load128cs(inp1 + idx);
+        x128 packed_inp2 = load128cs(inp2 + idx);
+        for (int k = 0; k < packed_inp1.size; ++k) {
+            packed_out[k] = (floatX)((float)packed_inp1[k] + (float)packed_inp2[k]);
+        }
+        store128(out + idx, packed_out);
+    }
 }
 
 // ------------------------------------------------------------
 // kernel launcher
 // TODO: 
 // validate result method in common.h
-// validate
-// benchmark kernel method
-// validate benchmark
 // kernel 2
 // then validate the whole file
 
@@ -49,7 +54,6 @@ void residual_forward1(floatX* out, const floatX* inp1, const floatX* inp2, int 
 }
 
 // kernel version dispatch
-
 void residual_forward2(floatX* out, const floatX* inp1, const floatX* inp2, int N, const int block_size) {
     const int grid_size = ceil_div(N, block_size);
     residual_forward_kernel2<<<grid_size, block_size>>>();
@@ -114,10 +118,6 @@ int main(int argc, char** argv){
 
 	// running the kernel on cpu
 	residual_forward_cpu(c_out, inp1, inp2, N);
-	// for (int i = 0; i < 10; i++){
-	// 	printf("%f + %f = %f\n", inp1[i], inp2[i], c_out[i]);
-	//
-	// }
 
     // time the kernel at the different block size
     int block_sizes[] = {32, 64, 128, 256, 512, 1024};
@@ -150,19 +150,6 @@ int main(int argc, char** argv){
 
         printf("block_size %4d | time %.4f ms | bandwidth %.2f GB/s \n", block_size, elapsed_time, memory_bandwidth);
     }
-    
-
-
-
-    // int grid_size = (N + block_size - 1) / block_size;
-    // residual_forward_kernel1<<<grid_size, block_size>>>(d_out, d_inp1, d_inp2, N);
-
-    // cudaMemcpy(out, d_out, N * sizeof(float), cudaMemcpyDeviceToHost);
-
-	//    printf("GPU kernel is calculating....\n");
-	// for (int i = 0; i < 10; i++){
-	// 	printf("%f + %f = %f\n", inp1[i], inp2[i], out[i]);
-	// }
 
     cudaFree(d_inp1);
     cudaFree(d_inp2);
