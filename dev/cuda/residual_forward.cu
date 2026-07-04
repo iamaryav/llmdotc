@@ -3,7 +3,7 @@
 #include<cuda_runtime.h>
 #include<cuda_fp16.h>
 
-// #define ENABLE_BF16
+// #define ENABLE_BF16 // not supported natively on my PC
 #define ENABLE_FP16
 #include "common.h"
 
@@ -11,8 +11,6 @@
 
 // ------------------------------------------------------------
 // cpu code
-// x = x + causal_attn(ln(x))
-// two input array and need to add them
 
 void residual_forward_cpu(float* out, const float* inp1, const float* inp2, const int N){
 	for(int i = 0; i < N; i++){
@@ -45,10 +43,6 @@ __global__ void residual_forward_kernel2(floatX* out, const floatX* inp1, const 
 
 // ------------------------------------------------------------
 // kernel launcher
-// TODO: 
-// validate result method in common.h
-// kernel 2
-// then validate the whole file
 
 void residual_forward1(floatX* out, const floatX* inp1, const floatX* inp2, int N, const int block_size) {
     const int grid_size = ceil_div(N, block_size);
@@ -56,13 +50,14 @@ void residual_forward1(floatX* out, const floatX* inp1, const floatX* inp2, int 
     cudaCheck(cudaGetLastError());
 }
 
-// kernel version dispatch
 void residual_forward2(floatX* out, const floatX* inp1, const floatX* inp2, int N, const int block_size) {
     const int grid_size = ceil_div(N, block_size * x128::size);
     residual_forward_kernel2<<<grid_size, block_size>>>(out, inp1, inp2, N);
     cudaCheck(cudaGetLastError());
 }
 
+
+// kernel version dispatch
 void residual_forward(int kernel_num,
                       floatX* out,
                       const floatX* inp1,
@@ -92,16 +87,12 @@ int main(int argc, char** argv){
 	int C = 768;
 	int N = B * T * C;
 
-	// creating memory on host and initializing with 
-	// random 
+	// creating memory on host and initializing with random
 	float* out = (float*)malloc(N * sizeof(float));
 	float* c_out = (float*)malloc(N * sizeof(float));
 	float* inp1 = make_random_float(N);
 	float* inp2 = make_random_float(N);
 
-    // launch the kernel
-    // move data to gpu
-    // use floatX for bfloat16 in common.h file
     
     floatX* d_out;
     floatX* d_inp1;
@@ -117,6 +108,7 @@ int main(int argc, char** argv){
     if (argc > 1) {
         kernel_num = atoi(argv[1]);
     }
+
     printf("Using kernel %d\n", kernel_num);
 
 	// running the kernel on cpu
@@ -138,8 +130,8 @@ int main(int argc, char** argv){
 
     printf("All result matched. Starting benchmarks. \n\n");
 
-    // benchmarking
 
+    // benchmarking
     for (int j = 0; j < sizeof(block_sizes) / sizeof(int); j++) {
         int block_size = block_sizes[j]; 
 
