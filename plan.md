@@ -1,9 +1,4 @@
 # Plan
-- write arch in torch - GPT - 2/3 size
-- write decoder only arch then improve one by one
-- shakespeare/tiny stories or tiny general data
-- write training pipeline in torch
-- do a training run(verify the correctness and loss graph)
 - write in c/cuda(piece by piece) 
 - speed comparision with pytorch training loop
 - Benchmark comparision
@@ -25,17 +20,17 @@
 - KV-Cache implementation - while doing inference - Done
 - Activation Funtions: ReLU, GeLU, SwigLU, ReLU ** 2 - Done
 - [relu**2 activation in MLP](https://arxiv.org/abs/2402.03804) - Done
-- [Sliding window with Causal](https://arxiv.org/pdf/2004.05150) - wip
+- [Sliding window with Causal](https://arxiv.org/pdf/2004.05150) - Done 
 
-- Optimizer setup [AdamW](https://arxiv.org/abs/1711.05101)
-- [Muon Optimizer](https://arxiv.org/abs/2502.16982)
-- [initialize model method]() - next
-- [Xavier/Glorot initialization](http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf) for linear layers
-- [He/Kaiming initialization](https://arxiv.org/abs/1502.01852) for ReLU activations
-- estimate flops method
-- method scaling law - [Kaplan et al.](https://arxiv.org/abs/2001.08361) and [Chinchilla](https://arxiv.org/abs/2203.15556) optimal compute and parameter counts
+- Optimizer setup [AdamW](https://arxiv.org/abs/1711.05101) - Done
+- [Muon Optimizer](https://arxiv.org/abs/2502.16982) - Done
+- [initialize model method]() - Done
+- [Xavier/Glorot initialization](http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf) for linear layers - Done
+- [He/Kaiming initialization](https://arxiv.org/abs/1502.01852) for ReLU activations - Done
+- estimate flops method - Done
+- method scaling law - [Kaplan et al.](https://arxiv.org/abs/2001.08361) and [Chinchilla](https://arxiv.org/abs/2203.15556) optimal compute and parameter counts - Done
 
-- [Flash Attention](https://arxiv.org/abs/2205.14135)
+- [Flash Attention](https://arxiv.org/abs/2205.14135) - WIP
 - [Flash Attention-2](https://arxiv.org/abs/2307.08691)
 - [Flash Attention-3](https://arxiv.org/abs/2407.08608)
 - Inference with flash attention
