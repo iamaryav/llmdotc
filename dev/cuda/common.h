@@ -14,7 +14,7 @@ __host__ __device__ T ceil_div(T dividend, T divisor) {
 // in GPUs that support (the LDG.128 and STS.128 instruction)
 template<class ElementType>
 struct alignas(16) Packed128{
-    packed128() = default;
+    Packed128() = default;
     __device__ explicit Packed128(int4 bits) {
         static_assert(sizeof(bits) == sizeof(payload), "Size mismatch.");
         memcpy(&payload, &bits, sizeof(bits));
@@ -35,9 +35,59 @@ struct alignas(16) Packed128{
     __device__ static Packed128 ones(){
         return constant(1);
     }
+
+    __device__ ElementType& operator[](int index) {
+        return payload[index];
+    }
+
+    __device__ int4 get_bits() {
+        int4 bits;
+        static_assert(sizeof(bits) == sizeof(payload), "Size mismatch.");
+        memcpy(&bits, &payload, sizeof(bits));
+        return bits;
+    }
+    // e.g. sizof(int4) is 16 (4 x 4 bytes), sizeof(bfloat16) =2, so size = 8
+    // so in the case where ElementType = bfloat16, we store 8 elements in on packed 128
     static constexpr const int size = sizeof(int4) / sizeof(ElementType);
     ElementType payload[size];
+};
+
+// short-form typedefs
+typedef Packed128<float> f128;
+
+// load a packed128 from a aligned memory address
+template<class ElementType>
+__device__ Packed128<ElementType> load128(const ElementType* address) {
+    return Packed128<ElementType>{*reinterpret_cast<const int4*>(address)};
 }
+
+// load a Packed128 from an aligned memory address with streaming cache hint
+// means don't cache this data skip caching read once data
+template<class ElementType>
+__device__ Packed128<ElementType> load128cs(const ElementType* address) {
+    return Packed128<ElementType>{__ldcs(reinterpret_cast<const int4*>(address))};
+}
+
+// store a Packed128 to an aligned memory address
+template<class ElementType>
+__device__ void store128(ElementType* target, Packed128<ElementType> value) {
+    *reinterpret_cast<int4*>(target) = value.get_bits();
+}
+
+
+// store a Packed128 to an aligned memory address with streaming cache hint
+// write the data but don't store in cache
+template<class ElementType>
+__device__ void store128cs(ElementType* target, Packed128<ElementType> value) {
+    __stcs(*reinterpret_cast<int4*>(target) = value.get_bits());
+}
+
+// store a Packed128 to an aligned memory address while caching in L2 but bypassing L1
+template<class ElementType>
+__device__ void store128cg(ElementType* target, Packed128<ElementType> value) {
+    __stcg(*reinterpret_cast<int4*>(target) = value.get_bits());
+}
+
 
 // -------------------------------------------------------------------
 // Helper Methods
@@ -168,6 +218,7 @@ typedef float floatN;
 
 #endif
 
+typedef Packed128<floatX> x128;
 
 
 

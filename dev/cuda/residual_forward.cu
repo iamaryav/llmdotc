@@ -55,8 +55,8 @@ void residual_forward1(floatX* out, const floatX* inp1, const floatX* inp2, int 
 
 // kernel version dispatch
 void residual_forward2(floatX* out, const floatX* inp1, const floatX* inp2, int N, const int block_size) {
-    const int grid_size = ceil_div(N, block_size);
-    residual_forward_kernel2<<<grid_size, block_size>>>();
+    const int grid_size = ceil_div(N, block_size * x128::size);
+    residual_forward_kernel2<<<grid_size, block_size>>>(out, inp1, inp2, N);
     cudaCheck(cudaGetLastError());
 }
 
