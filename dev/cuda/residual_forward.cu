@@ -1,10 +1,22 @@
+// Requirements: CUDA Toolkit, NVIDIA GPU
+// Check compute capability: nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+//   FP16: sm_53+   |   BF16: sm_80+
+//
+// Build & Run:
+//   nvcc -o residual_forward residual_forward.cu && ./residual_forward 1
+//
+// Mixed precision (pass -D flag or uncomment below):
+//   nvcc -DENABLE_FP16 -arch=sm_70 -o residual_forward residual_forward.cu  # FP16
+//   nvcc -DENABLE_BF16 -arch=sm_80 -o residual_forward residual_forward.cu  # BF16
+//   # precedence: BF16 > FP16 > fp32
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<cuda_runtime.h>
 #include<cuda_fp16.h>
 
-// #define ENABLE_BF16 // not supported natively on my PC
-#define ENABLE_FP16
+// #define ENABLE_BF16  // uncomment for BF16 (requires sm_80+)
+// #define ENABLE_FP16  // uncomment for FP16
 #include "common.h"
 
 
