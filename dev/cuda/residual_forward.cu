@@ -1,7 +1,10 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<cuda_runtime.h>
+#include<cuda_fp16.h>
 
+// #define ENABLE_BF16
+#define ENABLE_FP16
 #include "common.h"
 
 
@@ -100,12 +103,12 @@ int main(int argc, char** argv){
     // move data to gpu
     // use floatX for bfloat16 in common.h file
     
-    float* d_out;
-    float* d_inp1;
-    float* d_inp2;
-    cudaCheck(cudaMalloc(&d_out, N * sizeof(float)));
-    cudaCheck(cudaMalloc(&d_inp1, N * sizeof(float)));
-    cudaCheck(cudaMalloc(&d_inp2, N * sizeof(float)));
+    floatX* d_out;
+    floatX* d_inp1;
+    floatX* d_inp2;
+    cudaCheck(cudaMalloc(&d_out, N * sizeof(floatX)));
+    cudaCheck(cudaMalloc(&d_inp1, N * sizeof(floatX)));
+    cudaCheck(cudaMalloc(&d_inp2, N * sizeof(floatX)));
     cudaCheck(memcpy_convert(d_inp1, inp1, N));
     cudaCheck(memcpy_convert(d_inp2, inp2, N));
 

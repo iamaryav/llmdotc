@@ -208,6 +208,7 @@ typedef __nv_bfloat16 floatN;
 
 #elif defined(ENABLE_FP16)
 
+#include <cuda_fp16.h>
 typedef half floatX;
 typedef half floatN;
 
