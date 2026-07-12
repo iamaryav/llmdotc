@@ -226,11 +226,20 @@ typedef Packed128<floatX> x128;
 // -------------------------------------------------------------------
 // random utils
 
-float* make_random_float(size_t N) {
+float* make_random_float01(size_t N) {
 	float* arr = (float*)malloc(N * sizeof(float));
 
 	for (size_t i = 0; i < N; i++) {
 		arr[i] = ((float)rand() / RAND_MAX); // 0..1
+	}
+	return arr;
+}
+
+float* make_random_float(size_t N) {
+	float* arr = (float*)malloc(N * sizeof(float));
+
+	for (size_t i = 0; i < N; i++) {
+		arr[i] = ((float)rand() / RAND_MAX) * 2.0 - 1.0; //-1..1
 	}
 	return arr;
 }
