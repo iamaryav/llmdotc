@@ -14,7 +14,7 @@ nvcc gelu_forward.cu -o gelu_forward
 #include<cuda_fp16.h>
 
 
-#define ENABLE_BF16
+// #define ENABLE_BF16
 #include "common.h"
 
 #define GELU_SCALING_FACTOR sqrtf(2.0f / M_PI)
@@ -23,7 +23,7 @@ nvcc gelu_forward.cu -o gelu_forward
 // CPU code
 // there are N values -> B * T * C
 // these values are contiguous in memory
-void gelu_forward_cpu(float* inp, float* out, int N){
+void gelu_forward_cpu(float* out, const float* inp, int N){
     for (int i = 0; i < N; i++) {
         float x = inp[i];
         float cube = 0.044715f * x * x * x;
@@ -35,53 +35,143 @@ void gelu_forward_cpu(float* inp, float* out, int N){
 // ----------------------------------------------------------------
 // GPU Kernels
 
-__global__ void gelu_forward_kernel1(floatX* inp, floatX* out, int N){
+__global__ void gelu_forward_kernel1(floatX* out, const floatX* inp, int N){
     // each thread will do the one ops
-    idx = blockIdx.x * blockdim.x + threadIdx.x;
-    if (idx < N) {
-        float x = out[idx];
-        float cube = 0.044715f * x * x * x;
-        out[idx] = 0.5f * x * (1.0f + tanhf(GELU_SCALING_FACTOR * (x + cube)));
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < N) {
+        float xi = inp[i];
+        float cube = 0.044715f * xi * xi * xi;
+        out[i] = 0.5f * xi * (1.0f + tanhf(GELU_SCALING_FACTOR * (xi + cube)));
     }
 }
 
+__global__ void gelu_forward_kernel2(floatX* out, const floatX* inp, int N){
 
+    int i = (blockIdx.x * blockDim.x + threadIdx.x) * x128::size;
 
+    if (i < N) {
+        x128 packed_out;
+        x128 packed_inp = load128cs(inp + i); // load and don't keep in cache
+        for (int k = 0; k < packed_inp.size; ++k) {
+            float xi = (float) packed_inp[k];
+            float cube = 0.044715f * xi * xi * xi;
+            packed_out[k] = (floatX)(0.5f * xi * (1.0f + tanhf(GELU_SCALING_FACTOR * (xi + cube))));
+        }
 
+        // store instead of storecs (without cache streaming) in case it is useful for the 
+        // data to be in the cache for the next operation after this GeLU
+        store128(out + i, packed_out);
+    }
 
+}
 
+// ----------------------------------------------------------------
+// kernel launcher
+void gelu_forward1(floatX* out, const floatX* inp, const int N, const int block_size){
+    const int grid_size = ceil_div(N, block_size);
+    gelu_forward_kernel1<<<grid_size, block_size>>>(out, inp, N);
+    cudaCheck(cudaGetLastError());
+}
 
+void gelu_forward2(floatX* out, const floatX* inp, const int N, const int block_size){
+    const int grid_size = ceil_div(N, block_size * x128::size);
+    gelu_forward_kernel2<<<grid_size, block_size>>>(out, inp, N);
+    cudaCheck(cudaGetLastError());
+}
 
+// kernel version dispatch
+void gelu_forward(int kernel_num, 
+                  floatX* out,
+                  floatX* inp,
+                  int N,
+                  int block_size) {
+    switch(kernel_num) {
+        case 1:
+            gelu_forward1(out, inp, N, block_size);
+            break;
+        case 2:
+            gelu_forward2(out, inp, N, block_size);
+            break;
+        default:
+            printf("Invalid kernel number\n");
+            exit(1);
+    }
+}
 
 // ----------------------------------------------------------------
 
 int main(int argc, char** argv){
 
-    // define setup main method  to setup gpu
+    //TODO: define setup main method  to setup gpu
     
-    // int B = 8;
-    // int T = 1024;
-    // int C = 768;
-
-    int B = 2;
-    int T = 4;
-    int C = 4;
+    int B = 8;
+    int T = 1024;
+    int C = 768;
     int N = B * T * C;
 
     float* inp = make_random_float(N);
-    float* out;
+    float* out = (float*) malloc(N * sizeof(float));
 
-    // inp = (float*) malloc(N * sizeof(float));
-    out = (float*) malloc(N * sizeof(float));
+    // read the kernel from command line
+    int kernel_num = 1;
+    if (argc > 1) {
+        kernel_num = atoi(argv[1]);
+    }
+    printf("Using kernel %d\n", kernel_num);
 
-    gelu_forward_cpu(inp, out, N);
+    // first check the correctness of kernel using CPU
+    gelu_forward_cpu(out, inp, N);
 
-    printf("cpu output: \n");
-    for(int i = 0; i < N; i++) {
-        printf("x: %f -> gelu(x): %f\n", inp[i], out[i]);
+    // move the input valud from host to device
+    floatX* d_inp;
+    floatX* d_out;
+    cudaCheck(cudaMalloc(&d_inp, N * sizeof(floatX)));
+    cudaCheck(cudaMalloc(&d_out, N * sizeof(floatX)));
+    // memcpy_conver is custom method that converts 
+    // data from source type to target type and then moves to device
+    cudaCheck(memcpy_convert(d_inp, inp, N));
+    
+    // time the kernel at different block sizes
+    int block_sizes[] = {32, 64, 128, 256, 512, 1024};
+
+    for (int j = 0; j < sizeof(block_sizes) / sizeof(int); j++) {
+        int block_size = block_sizes[j];
+        printf("Checking block size %d.\n", block_size);
+        gelu_forward(kernel_num, d_out, d_inp, N, block_size);
+
+#if !defined(ENABLE_BF16) && !defined(ENABLE_FP16)
+        float tol = 1e-5;
+#else
+        float tol = 1e-2f;
+#endif
+        validate_result(d_out, out, "out", N, tol);
     }
 
+    printf("All results matched. Starting benchmarks \n");
+
+    for (int j = 0; j < sizeof(block_sizes) / sizeof(int); j++) {
+
+        int block_size = block_sizes[j]; 
+        int repeat_times = 1000;
+
+        float elapsed_time = benchmark_kernel(repeat_times, gelu_forward,
+                                              kernel_num, d_out, d_inp,
+                                              N, block_size);
+
+        //Napkin Math
+        // for each (B, T, C) output element, we do 1 read and 1 write, 4 bytes each
+        long memory_ops = B * T * C * 2 * int(sizeof(floatX));
+        float memory_bandwidth = memory_ops / elapsed_time / 1e6;
+
+        printf("block_size %4d | time %.4f ms | bandwidth %.2f GB/s\n", block_size, elapsed_time, memory_bandwidth);
+
+    }
+
+    // free memory
     free(inp);
     free(out);
+
+    cudaCheck(cudaFree(d_inp));
+    cudaCheck(cudaFree(d_out));
     return 0;
 }
