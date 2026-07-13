@@ -1,11 +1,15 @@
 /*
-nvcc gelu_forward.cu -o gelu_forward
+Requirements: CUDA Toolkit, NVIDIA GPU
+Check compute capability: nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+FP16: sm_53+   |   BF16: sm_80+
 
+Build & Run:
+nvcc -o gelu_forward gelu_forward.cu && ./gelu_forward 1
 
-
-
-
-
+Mixed precision (pass -D flag or uncomment below):
+nvcc -DENABLE_FP16 -arch=sm_70 -o gelu_forward gelu_forward.cu  # FP16
+nvcc -DENABLE_BF16 -arch=sm_80 -o gelu_forward gelu_forward.cu  # BF16
+# precedence: BF16 > FP16 > fp32
 */
 
 #include<stdio.h>
