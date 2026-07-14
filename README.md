@@ -1,4 +1,4 @@
 # llmdotc
 
-LLM training in simple, raw C/CUDA
+LLM training and inference in simple, raw C/CUDA
 
