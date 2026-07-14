@@ -4,11 +4,11 @@ Check compute capability: nvidia-smi --query-gpu=compute_cap --format=csv,nohead
 FP16: sm_53+   |   BF16: sm_80+
 
 Build & Run:
-nvcc -o gelu_forward gelu_forward.cu && ./gelu_forward 1
+nvcc -O3 --use_fast_math gelu_forward.cu -o gelu_forward -lcublas -lcublasLt && ./gelu_forward 1
 
 Mixed precision (pass -D flag or uncomment below):
-nvcc -DENABLE_FP16 -arch=sm_70 -o gelu_forward gelu_forward.cu  # FP16
-nvcc -DENABLE_BF16 -arch=sm_80 -o gelu_forward gelu_forward.cu  # BF16
+nvcc -O3 --use_fast_math -DENABLE_FP16 -arch=sm_70 gelu_forward.cu -o gelu_forward -lcublas -lcublasLt  # FP16
+nvcc -O3 --use_fast_math -DENABLE_BF16 -arch=sm_80 gelu_forward.cu -o gelu_forward -lcublas -lcublasLt  # BF16
 # precedence: BF16 > FP16 > fp32
 */
 
@@ -106,7 +106,7 @@ void gelu_forward(int kernel_num,
 
 int main(int argc, char** argv){
 
-    //TODO: define setup main method  to setup gpu
+    setup_main();
     
     int B = 8;
     int T = 1024;

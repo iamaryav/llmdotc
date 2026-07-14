@@ -1,7 +1,10 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<float.h>
-#include<math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <float.h>
+#include <math.h>
+#include <cublas_v2.h>
+#include <cublasLt.h>
+#include <cuda_runtime.h>
 
 
 template<class T>
@@ -105,6 +108,27 @@ void cuda_check(cudaError_t error, const char *file, int line) {
 // cudaCheck macro
 #define cudaCheck(err) (cuda_check(err, __FILE__, __LINE__))
 
+// cuBLAS error checking 
+void cublasCheck(cublasStatus_t status, const char *file, int line) {
+    if (status != CUBLAS_STATUS_SUCCESS) {
+        printf("[cuBLAS ERROR]: %d %s %d\n", status, file, line);
+        exit(EXIT_FAILURE);
+    }
+}
+#define cublasCheck(status) { cublasCheck((status), __FILE__, __LINE__); }
+
+// -------------------------------------------------------------------
+// cuBLAS setup
+// these wil be initialized by setup_main
+static size_t cublaslt_workspace_size = 32 * 1024 * 1024; // adjust based on GPU
+static void* cublaslt_workspace = NULL;
+static cublasComputeType_t cublas_compute_type;
+cublasHandle_t cublas_handle;
+cublasLtHandle_t cublaslt_handle;
+int cuda_arch_major = 0;
+int cuda_arch_minor = 0;
+int cuda_num_SMs = 0; // for persistent thread where we want 1 threadblock per SM
+int cuda_threads_per_SM = 0; // needed to calculate how many blocks to launch to fill up the GPU
 
 // -------------------------------------------------------------------
 // testing and benchmarking utils 
@@ -119,6 +143,35 @@ template<class TargetType>
     free(converted);
     return status;
 }
+
+void setup_main(){
+    srand(0); // seed random
+
+    // set up the device
+    int deviceIdx = 0;
+    cudaCheck(cudaSetDevice(deviceIdx));
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, deviceIdx);
+    cuda_num_SMs = deviceProp.multiProcessorCount;
+    cuda_threads_per_SM = deviceProp.maxThreadsPerMultiProcessor;
+    cuda_arch_major = deviceProp.major;
+    cuda_arch_minor = deviceProp.minor;
+    printf("cuda_num_SMs: %d\ncuda_threads_per_SM: %d\ncuda_arch_major: %d\ncuda_arch_minor: %d\n", cuda_num_SMs, cuda_threads_per_SM, cuda_arch_major, cuda_arch_minor); 
+
+    // setup cuBLAS and cuBLASLt
+    cublasCheck(cublasCreate(&cublas_handle));
+    cublasCheck(cublasLtCreate(&cublaslt_handle));
+    cudaCheck(cudaMalloc(&cublaslt_workspace, cublaslt_workspace_size));
+
+    // TF32 precision is equivalent to torch.set_float32_matmul_precision('high')
+    int enable_tf32 = cuda_arch_major >= 8 ? 1 : 0;
+
+    cublas_compute_type = enable_tf32 ? CUBLAS_COMPUTE_32F_FAST_TF32 : CUBLAS_COMPUTE_32F;
+    cublasMath_t cublas_math_mode = enable_tf32 ? CUBLAS_TF32_TENSOR_OP_MATH : CUBLAS_DEFAULT_MATH;
+    cublasCheck(cublasSetMathMode(cublas_handle, cublas_math_mode));
+}
+
+    
 
 template<class D, class T>
 void validate_result(D* device_result, const T* cpu_reference, const char* name, std::size_t num_elements, T tolerance=1e-4){

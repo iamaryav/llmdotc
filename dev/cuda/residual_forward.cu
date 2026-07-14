@@ -4,11 +4,11 @@ Check compute capability: nvidia-smi --query-gpu=compute_cap --format=csv,nohead
 FP16: sm_53+   |   BF16: sm_80+
 
 Build & Run:
-nvcc -o residual_forward residual_forward.cu && ./residual_forward 1
+nvcc -O3 --use_fast_math residual_forward.cu -o residual_forward -lcublas -lcublasLt && ./residual_forward 1
 
 Mixed precision (pass -D flag or uncomment below):
-nvcc -DENABLE_FP16 -arch=sm_70 -o residual_forward residual_forward.cu  # FP16
-nvcc -DENABLE_BF16 -arch=sm_80 -o residual_forward residual_forward.cu  # BF16
+nvcc -O3 --use_fast_math -DENABLE_FP16 -arch=sm_70 residual_forward.cu -o residual_forward -lcublas -lcublasLt  # FP16
+nvcc -O3 --use_fast_math -DENABLE_BF16 -arch=sm_80 residual_forward.cu -o residual_forward -lcublas -lcublasLt  # BF16
 # precedence: BF16 > FP16 > fp32
 */
 
