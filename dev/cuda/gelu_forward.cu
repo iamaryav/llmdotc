@@ -1,15 +1,19 @@
 /*
-Requirements: CUDA Toolkit, NVIDIA GPU
-Check compute capability: nvidia-smi --query-gpu=compute_cap --format=csv,noheader
-FP16: sm_53+   |   BF16: sm_80+
+Kernels for GELU forward pass.
 
-Build & Run:
-nvcc -O3 --use_fast_math gelu_forward.cu -o gelu_forward -lcublas -lcublasLt && ./gelu_forward 1
+Compile example:
+nvcc -O3 --use_fast_math -lcublas -lcublasLt gelu_forward.cu -o gelu_forward
 
-Mixed precision (pass -D flag or uncomment below):
-nvcc -O3 --use_fast_math -DENABLE_FP16 -arch=sm_70 gelu_forward.cu -o gelu_forward -lcublas -lcublasLt  # FP16
-nvcc -O3 --use_fast_math -DENABLE_BF16 -arch=sm_80 gelu_forward.cu -o gelu_forward -lcublas -lcublasLt  # BF16
-# precedence: BF16 > FP16 > fp32
+If encountering "error: identifier "M_PI" is undefined", add the following lines to the top of the file:
+
+#define _USE_MATH_DEFINES
+#include <math.h>  OR  #include <cmath>
+
+version 1 is naive CPU port
+./gelu_forward 1
+
+version 2 is bfloat16 with the Packed128 data structure
+./gelu_forward 2
 */
 
 #include<stdio.h>

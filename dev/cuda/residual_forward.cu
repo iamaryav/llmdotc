@@ -1,15 +1,14 @@
 /*
-Requirements: CUDA Toolkit, NVIDIA GPU
-Check compute capability: nvidia-smi --query-gpu=compute_cap --format=csv,noheader
-FP16: sm_53+   |   BF16: sm_80+
+Kernels for residual forward pass.
 
-Build & Run:
-nvcc -O3 --use_fast_math residual_forward.cu -o residual_forward -lcublas -lcublasLt && ./residual_forward 1
+Compile example:
+nvcc -O3 --use_fast_math -lcublas -lcublasLt residual_forward.cu -o residual_forward
 
-Mixed precision (pass -D flag or uncomment below):
-nvcc -O3 --use_fast_math -DENABLE_FP16 -arch=sm_70 residual_forward.cu -o residual_forward -lcublas -lcublasLt  # FP16
-nvcc -O3 --use_fast_math -DENABLE_BF16 -arch=sm_80 residual_forward.cu -o residual_forward -lcublas -lcublasLt  # BF16
-# precedence: BF16 > FP16 > fp32
+version 1 is naive CPU port
+./residual_forward 1
+
+version 2 is bfloat16 with the Packed128 data structure
+./residual_forward 2
 */
 
 #include<stdio.h>
