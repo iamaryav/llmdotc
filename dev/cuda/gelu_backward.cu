@@ -13,8 +13,7 @@
 // CPU code ref
 
 gelu_backward_cpu(){
-
-
+    // approximation formula 
 }
 
 
