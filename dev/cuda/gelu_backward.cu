@@ -53,8 +53,21 @@ __global__ void gelu_backward_kernel2(floatX* dinp, const floatX* inp, const flo
         x128 packed_inp = load128cs(inp + i);
         x128 packed_dout = load128cs(dout + i);
 
+        for (int k = 0; k < packed_ind.size; ++k) {
+            float x = (float)packed_inp[k];
+            float cube = 0.044715f * x * x * x;
+            float tanh_args = GELU_SCALING_FACTOR * (x + cube);
+            float tanh_out = tanhf(tanh_args);
+            float coshf_out = coshf(tanh_args);
+            float sech_out = 1.0f / (coshf_out * coshf_out);
+            float local_grad = 0.5f * (1.0f + tanh_out) + 0.5f * x * sech_out * GELU_SCALING_FACTOR * (1.0f + 3.0f * 0.044715f * x * x);
+            packed_dinp[k] = (floatX)(local_grad * (float)packed_dout[k]);
+        }
+        // write 16 byte from packed_dinp to the location starts from dinp + i
+        store128(dinp + i, packed_dinp);
     }
 }
+
 //-------------------------------------------------------------
 
 int main(int argc, char** argv) {
@@ -78,6 +91,9 @@ int main(int argc, char** argv) {
     for (int i = 0; i < N; i++) { 
         printf("inp: %f, | dout: %f | dinp: %f\n", inp[i], dout[i], dinp[i]);
     }
+
+    // launching kernel first normal way 
+    // then through kernle launcher
 
     return 0;
 }
