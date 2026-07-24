@@ -1,10 +1,30 @@
+/*
+Kernels for GELU backward pass.
+
+Compile example:
+nvcc -O3 --use_fast_math -lcublas -lcublasLt gelu_backward.cu -o gelu_backward
+
+If encountering "error: identifier \"M_PI\" is undefined", add the following lines to the top of the file:
+
+#define _USE_MATH_DEFINES
+#include <math.h>  OR  #include <cmath>
+
+version 1 is naive CPU port
+./gelu_backward 1
+
+version 2 is bfloat16 with the Packed128 data structure
+./gelu_backward 2
+*/
+
+
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<cuda_runtime.h>
 
 
-
 #include "common.h"
+//#define ENABLE_BF16
 
 
 
@@ -33,7 +53,7 @@ void gelu_backward_cpu(float* dinp, const float* inp, const float* dout, const i
 //-------------------------------------------------------------
 // GPU Kernels
 
-__global__ void gelu_backward_kernel1(floatX* dinp, const floatX* inp, const float* dout, const int N) {
+__global__ void gelu_backward_kernel1(floatX* dinp, const floatX* inp, const floatX* dout, const int N) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N) {
         float x = inp[i];
@@ -87,70 +107,97 @@ void gelu_backward2(floatX* dinp, const floatX* inp, const floatX* dout, const i
 // kernel version dispatch
 
 
-void gelu_backward(){
+void gelu_backward(const int kernel_num, floatX* dinp, const floatX* inp, const floatX* dout, const int N, const int block_size){
 
+    switch(kernel_num) {
+        case 1: 
+            gelu_backward1(dinp, inp, dout, N, block_size);
+            break;
+        case 2: 
+            gelu_backward2(dinp, inp, dout, N, block_size);
+            break;
+        default:
+            printf("Invalid kernel number\n");
+            exit(1);
+    }
 }
 
 //-------------------------------------------------------------
 
 int main(int argc, char** argv) {
-    // setup main
+    setup_main();
 
-    // int B = 8;
-    // int T = 1024;
-    // int C = 768;
-    
-    int B = 2;
-    int T = 4;
-    int C = 4;
+    int B = 8;
+    int T = 1024;
+    int C = 768;
     int N = B * T * C;
 
+    // create host memory of random numbers
     float* dinp = (float*)malloc(N * sizeof(float));
     float* dout = make_random_float(N);
     float* inp = make_random_float(N);
 
-    gelu_backward_cpu(dinp, inp, dout, N);
-
-    for (int i = 0; i < N; i++) { 
-        printf("inp: %8.4f, | dout: %8.4f | dinp: %8.4f\n", inp[i], dout[i], dinp[i]);
+    // read kernel num from command line
+    int kernel_num = 1;
+    if (argc > 1) {
+        kernel_num = atoi(argv[1]);
     }
 
+    printf("Using kernel %d\n", kernel_num);
+
+    // correctness of kernel in CPU
+    gelu_backward_cpu(dinp, inp, dout, N);
+
+    // GPU
     floatX* d_dinp;
     floatX* d_dout;
     floatX* d_inp;
-
     cudaCheck(cudaMalloc(&d_dinp, N * sizeof(floatX)));
     cudaCheck(cudaMalloc(&d_dout, N * sizeof(floatX)));
     cudaCheck(cudaMalloc(&d_inp, N * sizeof(floatX)));
 
-    // cudaMemcpy(d_dinp, dinp, N * sizeof(floatX), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_dout, dout, N * sizeof(floatX), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_inp, inp, N * sizeof(floatX), cudaMemcpyHostToDevice);
+    cudaCheck(memcpy_convert(d_dout, dout, N));
+    cudaCheck(memcpy_convert(d_inp, inp, N));
 
-    // grid size 2, block size 32
-    gelu_backward_kernel1<<<2, 32>>>(d_dinp, d_inp, d_dout, N);
-    float* dh_inp = (float*)malloc(N * sizeof(float));
+    // kernel at different block_size
+    // block_size: no of thread in a block
+    int block_sizes[] = {32, 64, 128, 256, 512, 1024};
 
-
-    cudaMemcpy(dh_inp, d_dinp, N * sizeof(floatX), cudaMemcpyDeviceToHost);
-
-
-    printf("GPU output\n");
-    for (int i = 0; i < N; i++) { 
-        printf("inp: %8.4f, | dout: %8.4f | dhinp: %8.4f\n", inp[i], dout[i], dh_inp[i]);
+    for (int j = 0; j < sizeof(block_sizes) / sizeof(int); j++) {
+        int block_size = block_sizes[j];
+        printf("Checking block size: %d\n", block_size);
+        gelu_backward(kernel_num, d_dinp, d_inp, d_dout, N, block_size);
+#if !defined(ENABLE_BF16) && !defined(ENABLE_FP16)
+        float tol = 1e-5;
+#else
+        float tol = 1e-2f;
+#endif
+        validate_result(d_dinp, dinp, "dinp", N, tol);
     }
 
+    printf("All results math. Starting benchmarks.\n\n");
 
-    // launching kernel first normal way 
-    // then through kernle launcher
+    for(int j = 0; j < sizeof(block_sizes) / sizeof(int); j++) {
+        int block_size = block_sizes[j];
+        int repeat_times = 1000;
+        
+        // elapsed time is in ms
+        float elapsed_time = benchmark_kernel(repeat_times, gelu_backward, kernel_num, d_dinp, d_inp, d_dout, N, block_size);
+
+        // bandwidth achieved
+        // for each (B, T, C) output element, we do 2 reads and 1 write, 4 bytes each
+        long memory_ops = N * 3 * sizeof(floatX);
+        float memory_bandwidth = memory_ops / elapsed_time / 1e6;
+
+        printf("block_size %4d | time %.4f ms | bandwidth %.2f GB/s\n", block_size, elapsed_time, memory_bandwidth);
+    }
     
+    // free memory
     free(dinp);
     free(dout);
     free(inp);
     cudaFree(d_dinp);
     cudaFree(d_dout);
     cudaFree(d_inp);
-    cudaFree(dh_inp);
-
     return 0;
 }
