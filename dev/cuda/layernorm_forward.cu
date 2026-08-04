@@ -5,7 +5,9 @@
 
 void layer_norm_cpu(int* out, const int* inp, const int N){
     // we will get the a matrix we have to normalize the valud on that matrix
-    // 
+    // Layernorm is perfromed for each T dimension
+    // B, T, C
+    //
 }
 
 

@@ -51,7 +51,8 @@ Download a hardware-matched target model and apply these techniques to it. Targe
 - [ ] Memory budget + roofline — from config.json: weights 1.19 GB (BF16, lm_head dedup'ed), KV cache 112 KB/token (28 × 8 kv-heads × 128 head-dim × 2 × 2B) → 4K ctx 448 MB, 8K ctx 896 MB; working set at 8K ≈ 2.4 GB (32K doesn't fit — why context_mgmt.cu exists). Decode ceiling on ~128 GB/s ≈ 107 tok/s; this is the benchmark anchor.
 - [ ] tools/convert_hf_to_bin.py — one-time Python converter: config.json → model_config (header + binary), tokenizer.json → tokenizer.bin (BPE vocab + merge ranks + special tokens + pre-tokenizer rules), safetensors → weights.bin (flat index: name/offset/dtype/shape; tied lm_head dedup'ed)
 - [ ] tools/convert.c — C reimplementation of the same converter (hand-rolled JSON reader); output must byte-match the Python version
-
+- [ ] torch/python code to load the model and do inference first
+- [ ] for all the cu files implment torch/python as well for faster implementation
 - [ ] load_weights.cu — read weights.bin index, upload BF16 to GPU, in-kernel BF16→FP32 dequant (lossless; storage stays BF16, compute runs FP32 — sm_75 has no tensor cores, so FP16/BF16 math buys nothing)
 - [ ] tokenizer.cu — read tokenizer.bin: byte-level BPE + Qwen pre-tokenizer + special tokens + Instruct chat template; must be correct before any token is generated
 - [ ] sampler.cu — GPU-side sampling: top-k/top-p/min-p filtering, temperature, repetition penalty, EOS/stop handling, beam search; no CPU round-trip per token
