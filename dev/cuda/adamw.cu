@@ -10,6 +10,7 @@ void adamw_cpu(float* params_memory, const float* grads_memory, float* m_memory,
     // adamw
     //
     // for each params we have to calculate the adamw
+    // by how much we should nudge the weight and which direction
     for (int i = 0; i < num_params; i++){
         float param = params_memory[i];
         float grad = grads_memory[i];
