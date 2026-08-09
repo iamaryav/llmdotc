@@ -11,6 +11,8 @@
 ### Training kernels, forward only
 Dataflow order, each step unblocks the next layer in `gpt.py`. These double as inference building blocks (matmul, layernorm, attention forward are shared).
 
+residual_forward.cu -> gelu_forward.cu -> gelu_backward.cu -> adamw.cu -> crossentropy_forward.cu -> crossentropy_softmax_backward.cu -> encoder_forward.cu -> encoder_backward.cu -> softmax_forward.cu -> layernorm_forward.cu -> layernorm_backward.cu -> matmul_backward_bias.cu -> matmul_forward.cu -> trimat_forward.cu -> matmul_backward.cu -> fused_residual_forward.cu -> classifier_fused.cu -> global_norm.cu -> attention_forward.cu -> sampler.cu -> kv_cache_append.cu -> attention_prefill.cu -> attention_decode.cu -> attention_backward.cu -> permute.cu -> nccl_all_reduce.cu
+
 - [ ] encoder_forward.cu
 - [ ] layernorm_forward.cu
 - [ ] matmul_forward.cu
