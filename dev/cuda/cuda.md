@@ -76,6 +76,10 @@ Download a hardware-matched target model and apply these techniques to it. Targe
 - [ ] batched_decode.cu — static batching across sequences
 - [ ] continuous_batching.cu — iteration-level scheduler (Orca-style), likely its own executable/API layer
 
+### Production inference libraries
+- vLLM
+- SGLang
+
 ### Quantization track (parallel to the core path; starts once naive_generate works)
 - [ ] quant_ptq.cu — offline PTQ: per-channel scales/zero-point, RTN baseline at INT8 then INT4 (calibration to a real dataset, not just identity)
 - [ ] quantized_matmul.cu — INT8 weight+activation matmul via DP4A (sm_75 path; no tensor cores on GTX 1650, so skip FP8/FP16-tensor-core variants)
@@ -121,3 +125,8 @@ Download a hardware-matched target model and apply these techniques to it. Targe
 - Serving/product view — latency budgets, TTFT/TPOT tradeoffs, capacity planning
 - Maintainable, correctness-first kernels — most real inference code is glue + one hard kernel
 - Measure (profiling), compare (baselines), deploy (integration, robustness)
+
+---
+
+### Projects
+- rl_lib — RL library in C/Python
