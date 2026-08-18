@@ -130,3 +130,21 @@ Download a hardware-matched target model and apply these techniques to it. Targe
 
 ### Projects
 - rl_lib — RL library in C/Python
+
+Topics
+- Prefill vs Decode
+- KV Cache
+- PagedAttention
+- Flash Attention
+- Continuous Batching
+- Speculative Decoding
+- Token Streaming
+- Prompt Caching
+- Grouped Query Attention
+- Mixture of Experts
+- How does vLLM work?
+- How does SGLang work?
+- LLM Routing
+- GPU, TPU
+
+----
