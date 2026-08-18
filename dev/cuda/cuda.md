@@ -1,6 +1,7 @@
-# Inference 
+# Inference
 
 ### Fundamentals
+
 - Thread/block/grid mapping, shared memory tiling, bank conflicts, warp divergence
 - Memory model — coalescing, occupancy, latency hiding, roofline analysis
 - Numerics — FP32/FP16/BF16/FP8 ranges, error propagation, loss scaling
@@ -9,6 +10,7 @@
 ---
 
 ### Training kernels, forward only
+
 Dataflow order, each step unblocks the next layer in `gpt.py`. These double as inference building blocks (matmul, layernorm, attention forward are shared).
 
 residual_forward.cu -> gelu_forward.cu -> gelu_backward.cu -> adamw.cu -> crossentropy_forward.cu -> crossentropy_softmax_backward.cu -> encoder_forward.cu -> encoder_backward.cu -> softmax_forward.cu -> layernorm_forward.cu -> layernorm_backward.cu -> matmul_backward_bias.cu -> matmul_forward.cu -> trimat_forward.cu -> matmul_backward.cu -> fused_residual_forward.cu -> classifier_fused.cu -> global_norm.cu -> attention_forward.cu -> sampler.cu -> kv_cache_append.cu -> attention_prefill.cu -> attention_decode.cu -> attention_backward.cu -> permute.cu -> nccl_all_reduce.cu
@@ -19,12 +21,16 @@ residual_forward.cu -> gelu_forward.cu -> gelu_backward.cu -> adamw.cu -> crosse
 - [ ] softmax_forward.cu
 - [ ] attention_forward.cu
 - [ ] trimat_forward.cu
-- [ ] crossentropy_forward.cu
+- [*] crossentropy_forward.cu
 - [x] residual_forward.cu
 - [x] gelu_forward.cu
 
+
+
 ### Lower priority / optional (training-specific, not inference-relevant)
+
 **Backward pass** (reverse dataflow order):
+
 - [ ] crossentropy_softmax_backward.cu
 - [ ] attention_backward.cu
 - [ ] matmul_backward.cu
@@ -34,22 +40,28 @@ residual_forward.cu -> gelu_forward.cu -> gelu_backward.cu -> adamw.cu -> crosse
 - [x] gelu_backward.cu
 
 **Optimizer / distributed:**
-- [ ] adamw.cu
+
+- [x] adamw.cu
 - [ ] global_norm.cu
 - [ ] nccl_all_reduce.cu
 
 **Fused training kernels:**
+
 - [ ] fused_residual_forward.cu
 - [ ] classifier_fused.cu
 - [ ] permute.cu
 
 ---
 
-### Core inference path 
+
+
+### Core inference path
+
 Sequential, each unblocks the next:
 Download a hardware-matched target model and apply these techniques to it. Target: `Qwen/Qwen3-0.6B` — 1.5 GB BF16 weights (1.19 GB after dedup'ing the tied `lm_head`), GQA + RoPE + RMSNorm + SwiGLU + QK-norm, the same dense stack as our training pipeline, and it fits the GTX 1650's 4 GB with room for KV cache + batching. Baseline for comparison: llama.cpp GGUF (Q8_0/Q4_K_M) of the same model. Everything here is size-agnostic — prefill/decode split, paged KV, chunked prefill, quantization all demonstrate identically at 0.6B and prove out on real metrics (TTFT, TPOT, bandwidth utilization).
 
 ### Phase 0 — before the first kernel
+
 - [ ] Memory budget + roofline — from config.json: weights 1.19 GB (BF16, lm_head dedup'ed), KV cache 112 KB/token (28 × 8 kv-heads × 128 head-dim × 2 × 2B) → 4K ctx 448 MB, 8K ctx 896 MB; working set at 8K ≈ 2.4 GB (32K doesn't fit — why context_mgmt.cu exists). Decode ceiling on ~128 GB/s ≈ 107 tok/s; this is the benchmark anchor.
 - [ ] tools/convert_hf_to_bin.py — one-time Python converter: config.json → model_config (header + binary), tokenizer.json → tokenizer.bin (BPE vocab + merge ranks + special tokens + pre-tokenizer rules), safetensors → weights.bin (flat index: name/offset/dtype/shape; tied lm_head dedup'ed)
 - [ ] tools/convert.c — C reimplementation of the same converter (hand-rolled JSON reader); output must byte-match the Python version
@@ -76,11 +88,17 @@ Download a hardware-matched target model and apply these techniques to it. Targe
 - [ ] batched_decode.cu — static batching across sequences
 - [ ] continuous_batching.cu — iteration-level scheduler (Orca-style), likely its own executable/API layer
 
+
+
 ### Production inference libraries
+
 - vLLM
 - SGLang
 
+
+
 ### Quantization track (parallel to the core path; starts once naive_generate works)
+
 - [ ] quant_ptq.cu — offline PTQ: per-channel scales/zero-point, RTN baseline at INT8 then INT4 (calibration to a real dataset, not just identity)
 - [ ] quantized_matmul.cu — INT8 weight+activation matmul via DP4A (sm_75 path; no tensor cores on GTX 1650, so skip FP8/FP16-tensor-core variants)
 - [ ] quant_loader.cu — read safetensors, quantize + repack weights to INT8/INT4 layout in the loader (touches model format)
@@ -88,7 +106,10 @@ Download a hardware-matched target model and apply these techniques to it. Targe
 
 ---
 
+
+
 ### Know conceptually, implement if time allows
+
 - [ ] speculative_decode.cu — draft/verify with a small model
 - [ ] kv_transfer / pd_disaggregation — split prefill and decode across separate GPU pools; understand *why* (prefill is compute-bound, decode is memory-bandwidth-bound — colocating them makes each starve the other) even without hand-rolling the NIXL/RDMA transfer layer
 - [ ] tensor_parallel.cu — split weights across GPUs
@@ -104,34 +125,46 @@ Download a hardware-matched target model and apply these techniques to it. Targe
 
 ---
 
+
+
 ### Do alongside everything above, not at the end
+
 - GPU profiling — Nsight Compute (kernel-level), Nsight Systems (timeline), roofline analysis
 - Benchmarking discipline — TTFT, TPOT, throughput vs. batch size, warmup + steady-state measurement
 
 ---
 
+
+
 ### Beyond kernels
 
 **Tooling fluency:**
+
 - Debugging — cuda-gdb, compute-sanitizer, deterministic reproduction
 - A high-level kernel layer (Triton/TVM/CUTLASS) — write fast, compare against hand-tuned
 - Profiling-guided optimization loop — measure first, never guess
 
 **Systems + communication:**
+
 - NCCL collectives, PCIe/NVLink topology, multi-GPU memory management
 - Model I/O — safetensors, checkpoint conversion, fused decode preprocessing
 
 **throughout:**
+
 - Serving/product view — latency budgets, TTFT/TPOT tradeoffs, capacity planning
 - Maintainable, correctness-first kernels — most real inference code is glue + one hard kernel
 - Measure (profiling), compare (baselines), deploy (integration, robustness)
 
 ---
 
+
+
 ### Projects
+
 - rl_lib — RL library in C/Python
 
 Topics
+
 - Prefill vs Decode
 - KV Cache
 - PagedAttention
@@ -147,4 +180,5 @@ Topics
 - LLM Routing
 - GPU, TPU
 
-----
+---
+
