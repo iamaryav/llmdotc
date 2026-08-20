@@ -2,7 +2,7 @@
 
 
 
-void crossentroy_forward_cpu(float* losses, const float* probs, int* target, int B, int T, int V){
+void crossentroy_forward_cpu(float* losses, const float* probs, int* target, int B, int T, int V) {
     // -log(probs)
     // P_i is flattened array
 
@@ -12,4 +12,23 @@ void crossentroy_forward_cpu(float* losses, const float* probs, int* target, int
     // for target
     // B * T + t
     // simply, math of pointing to the right probablity vector and right target index
+
+    for (int b = 0; b < B; b++) {
+        for (int t = 0; t < T; t++) {
+            const float* probs_bt = probs + b * T * V + t * V;
+            int ix = [b * T + t];
+            losses[b * T + t] = -logf(probs_bt[idx]);
+        }
+    }
 }
+
+// -------------------------------------------------------------------------
+// GPU kernels
+
+__global__ void crossentroy_forward_kernel1(){
+
+}
+
+
+
+// -------------------------------------------------------------------------
