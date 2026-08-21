@@ -296,3 +296,11 @@ float* make_random_float(size_t N) {
 	}
 	return arr;
 }
+
+int* make_random_int(size_t N, int V) {
+    int* arr = (int*)malloc(N * sizeof(int));
+    for(size_t i = 0; i < N; i++) {
+        arr[i] = rand() % V; // range 0...V-1
+    }
+    return arr;
+}
