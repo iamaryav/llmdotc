@@ -57,4 +57,9 @@ residual_forward.cu -> gelu_forward.cu -> gelu_backward.cu -> adamw.cu -> crosse
 Play with the models and their weights
 Inference Engineering Book
 - Quantization
-- 
+- Speculative Decoding
+- caching (prefill + decoding)
+- Flash attention, Paged attention, chunked prefill
+- Model parallelism
+- Dissaggregation
+- Production
