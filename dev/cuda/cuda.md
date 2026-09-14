@@ -55,6 +55,7 @@ residual_forward.cu -> gelu_forward.cu -> gelu_backward.cu -> adamw.cu -> crosse
 
 #### Core inference path
 Play with the models and their weights
+Inference, mechinterp
 Inference Engineering Book
 - Quantization
 - Speculative Decoding
