@@ -304,3 +304,18 @@ int* make_random_int(size_t N, int V) {
     }
     return arr;
 }
+
+float* make_zeros_float(size_t N) {
+    float* zeros = (float*)malloc(N * sizeof(float));
+    memset(arr, 0, N * sizeof(float));
+    return arr;
+}
+
+float* make_ones_float(size_t N) {
+    float* ones = (float*)malloc(N * sizeof(float));
+    for (size_t i = 0; i < N; i++) {
+        ones[i] = 1.0f;
+    }
+    return ones;
+}
+

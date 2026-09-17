@@ -1,6 +1,8 @@
 #include<stdio.h>
 #include<stdlib.h>
 
+#include "common.h"
+
 
 // ------------------------------------------------------------------------------
 // cross entropy backward
@@ -34,13 +36,48 @@ void crossentropy_softmax_backward_cpu(float* dlogits, const float* dlosses, con
 
 // ------------------------------------------------------------------------------
 // gpu kernel code
-void crossentropy_softmax_backward_kernel(){
-
+__global__ void crossentropy_softmax_backward_kernel1(float* dlogits, 
+                                                      const float* dlosses, 
+                                                      const float* probs, const int* targets,
+                                                      int B, int T, int V){
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < B * T * V) {
+        int b = i / (T * V);
+        int t = (i / v) % T;
+        int v = i % v;
+        float* dlogits_bt = dlogits + b * T * V + t * V;
+        float* probs_bt = probs + b * T * V + t * V;
+        float dloss = dlosses[b * T + t];
+        int ix = targets[b * T + t];
+        float p = probs_bt[v];
+        float indicator = v == ix ? 1.0f : 0.0f;
+        dlogits_bt[v] += (p - indicator) * dloss;
+    }
 }
 
+// ------------------------------------------------------------------------------
+// kernel launcher
+
+
+// kernel version dispatch
+
+
+
+// ------------------------------------------------------------------------------
 
 int main(){
     printf("start\n");
+
+    int B = 8;
+    int T = 1024;
+    int v = 50257;
+
+    float* probs = make_random_float01(B * T * V);
+    int* targets = make_radom_int(B * T, V);
+    float* dlosses = make_random_float01(B * T);
+    float* dlogits = make_zero_float(B * T * V);
+
+
 
     return 0;
 }
