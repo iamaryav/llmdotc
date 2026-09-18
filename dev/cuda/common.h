@@ -307,8 +307,8 @@ int* make_random_int(size_t N, int V) {
 
 float* make_zeros_float(size_t N) {
     float* zeros = (float*)malloc(N * sizeof(float));
-    memset(arr, 0, N * sizeof(float));
-    return arr;
+    memset(zeros, 0, N * sizeof(float));
+    return zeros;
 }
 
 float* make_ones_float(size_t N) {
