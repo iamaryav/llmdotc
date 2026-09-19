@@ -1,5 +1,7 @@
 # Inference
 
+Write in both CUDA/Triton
+
 ### Fundamentals
 
 - Thread/block/grid mapping, shared memory tiling, bank conflicts, warp divergence
