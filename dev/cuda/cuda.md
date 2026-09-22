@@ -33,7 +33,7 @@ residual_forward.cu -> gelu_forward.cu -> gelu_backward.cu -> adamw.cu -> crosse
 
 **Backward pass** (reverse dataflow order):
 
-- [ ] crossentropy_softmax_backward.cu
+- [x] crossentropy_softmax_backward.cu
 - [ ] attention_backward.cu
 - [ ] matmul_backward.cu
 - [ ] matmul_backward_bias.cu
