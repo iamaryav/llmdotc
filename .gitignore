@@ -4,3 +4,4 @@ __pycache__/
 residual_forward
 weights/
 dev/cuda/crossentropy_softmax_backward
+encoder_forward
