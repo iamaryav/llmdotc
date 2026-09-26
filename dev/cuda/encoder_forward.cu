@@ -174,10 +174,6 @@ void encoder_forward(int kernel_num,
 
 // ---------------------------------------------------------------------
 
-void benchmark_kernels(){
-
-}
-
 int main(int argc, char** argv){
     int B = 8;
     int T = 1024;
