@@ -82,7 +82,7 @@ __device__ void store128(ElementType* target, Packed128<ElementType> value) {
 // write the data but don't store in cache
 template<class ElementType>
 __device__ void store128cs(ElementType* target, Packed128<ElementType> value) {
-    __stcs(*reinterpret_cast<int4*>(target) = value.get_bits());
+    __stcs(reinterpret_cast<int4*>(target), value.get_bits());
 }
 
 // store a Packed128 to an aligned memory address while caching in L2 but bypassing L1
