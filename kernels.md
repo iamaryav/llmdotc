@@ -1,6 +1,6 @@
 # Inference
 
-Write in both CUDA/Triton
+Kenels in CUDA/Triton
 
 ### Fundamentals
 
