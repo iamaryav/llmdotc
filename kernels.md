@@ -1,6 +1,6 @@
-# Inference
+# Kernel & Inference
 
-Kenels in CUDA/Triton
+Kenels & Inference in CUDA/Triton
 
 ### Fundamentals
 
@@ -56,7 +56,7 @@ residual_forward.cu -> gelu_forward.cu -> gelu_backward.cu -> adamw.cu -> crosse
 ---
 
 #### Core inference path
-Play with the models and their weights
+Play with the os-models and their weights
 Inference, mechinterp
 Inference Engineering Book
 - Quantization
