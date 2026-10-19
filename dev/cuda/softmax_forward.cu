@@ -86,7 +86,58 @@ __global__ void softmax_forward_kernel1(float* out, const float* inp, int N, int
 }
 
 __global__ void softmax_forward_kernel2(float* out, const float* inp, int N, int C) {
-    // thread coarsening, 
+    // thread coarsening, parallel reduction, syncthreads
+    extern __shared__ float shared[];
+    int idx = blockIdx.x; // block index
+    int tid = threadIdx.x;
+    const float* x = inp + idx * C; // idx-the row in the inp
+    int block_size = blockDim.x;
+    float max_val = -INFINITY;
+    // thread coarsening
+    for(int i = tid; i < C; i += block_size){
+            max_val = fmaxf(max_val, x[i]);
+    }
+    shared[tid] = max_val;
+
+    // parallel reductions
+    for (int stride = block_size / 2; stride >= 1; stride /= 2) {
+        __syncthreads();
+        if (tid < stride){
+            shared[tid] = fmaxf(shared[tid], shared[tid + stride]);
+        }
+    }
+
+    __syncthreads();
+    float offset = shared[0];
+    // exponent calculation
+    for (int i = tid; i < C; i += block_size) {
+        out[idx * C + i] = expf(x[i] - offset);
+    }
+
+    __syncthreads();
+    // sum using thread coarsening
+    x = out + idx * C; // idx-th row of out
+    float sum_val = 0.0f;
+    for(int i = tid; i < C; i += block_size) {
+        sum_val += x[i];
+    }
+    shared[tid] = sum_val;
+
+    //reductions
+    for (int stride = block_size / 2; stride >= 1; stride /= 2) {
+        __syncthreads();
+        if (tid < stride) {
+            shared[tid] += shared[tid + stride];
+        }
+    }
+
+    // broadcast the sum to all threads in the block
+    __syncthreads();
+    float sum = shared[0];
+    // divide the input values by the sum
+    for (int i = tid; i < C; i += block_size) {
+        out[idx * C + i] = x[i] / sum;
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -98,11 +149,22 @@ void softmax_forward1(float* out, const float* inp, int N, int C, const int bloc
     cudaCheck(cudaGetLastError());
 }
 
+void softmax_forward2(float* out, const float* inp, int N, int C, const int block_size) {
+    // one block per row, one shared float per thread
+    const int grid_size = N;
+    size_t shared_mem_size = block_size * sizeof(float);
+    softmax_forward_kernel2<<<grid_size, block_size, shared_mem_size>>>(out, inp, N, C);
+    cudaCheck(cudaGetLastError());
+}
+
 // kernel version dispatch
 void softmax_forward(int kernel_num, float* out, const float* inp, int N, int C, int block_size) {
     switch (kernel_num) {
         case 1:
             softmax_forward1(out, inp, N, C, block_size);
+            break;
+        case 2:
+            softmax_forward2(out, inp, N, C, block_size);
             break;
         default:
             printf("Invalid kernel number\n");
