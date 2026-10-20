@@ -86,6 +86,7 @@ __global__ void softmax_forward_kernel1(float* out, const float* inp, int N, int
 }
 
 __global__ void softmax_forward_kernel2(float* out, const float* inp, int N, int C) {
+    // one block per row
     // thread coarsening, parallel reduction, syncthreads
     extern __shared__ float shared[];
     int idx = blockIdx.x; // block index
@@ -140,21 +141,25 @@ __global__ void softmax_forward_kernel2(float* out, const float* inp, int N, int
     }
 }
 
+__global__ void softmax_forward_kernel3(float* out, const float* inp, int N, int C) {
+    // one warp per row
+}
+
 //---------------------------------------------------------------------------------------
+
 // kernel launcher
 void softmax_forward1(float* out, const float* inp, int N, int C, const int block_size) {
     // one thread per row
-    const int grid_size = ceil_div(N, block_size);
+    int grid_size = ceil_div(N, block_size)
     softmax_forward_kernel1<<<grid_size, block_size>>>(out, inp, N, C);
     cudaCheck(cudaGetLastError());
 }
 
 void softmax_forward2(float* out, const float* inp, int N, int C, const int block_size) {
     // one block per row, one shared float per thread
-    const int grid_size = N;
+    int grid_size = N;
     size_t shared_mem_size = block_size * sizeof(float);
     softmax_forward_kernel2<<<grid_size, block_size, shared_mem_size>>>(out, inp, N, C);
-    cudaCheck(cudaGetLastError());
 }
 
 // kernel version dispatch
@@ -175,6 +180,7 @@ void softmax_forward(int kernel_num, float* out, const float* inp, int N, int C,
 
 
 
+// nsighe compute 
 //---------------------------------------------------------------------------------------
 int main(int argc, char** argv) {
     int B = 8;
@@ -251,6 +257,7 @@ int main(int argc, char** argv) {
                                               B * T, V, block_size);
 
         // napkin math: read inp twice (max, exp), write out, then read + write out (normalize)
+        // kernel 2 does 6 passes
         long memory_ops = (long)N * 5 * sizeof(float);
         float memory_bandwidth = memory_ops / elapsed_time / 1e6;
 
